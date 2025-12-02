@@ -12,8 +12,6 @@ import warnings
 warnings.filterwarnings("ignore", message=".*Busy Wait: Held high.*")
 
 import time
-import os
-import threading
 from refresh_task import PlaylistRefresh
 from plugins.plugin_registry import load_plugins, get_plugin_instance
 import os
@@ -92,54 +90,42 @@ if __name__ == '__main__':
     # start the background refresh task
     refresh_task.start()
 
-    # --- STARTUP PLAYLIST ONE-SHOT RUN (with bypass file) ---
-    # Persistent bypass file: create ~/.inkypi_skip_startup to skip next boot run
+    # --- STARTUP PLAYLIST HANDLER ---
+    # Check for bypass file in a persistent location
     bypass_file = os.path.expanduser("~/.inkypi_skip_startup")
     startup_playlist_config = device_config.get_config("startup_playlist", default=None)
-
-    if os.path.exists(bypass_file):
-        logger.info("Bypass file '%s' found — skipping startup playlist and removing file.", bypass_file)
-        try:
-            os.remove(bypass_file)
-        except Exception:
-            logger.exception("Failed to remove bypass file; continuing without removing.")
-    elif startup_playlist_config:
+    
+    if startup_playlist_config and not os.path.exists(bypass_file):
         try:
             playlist_name = startup_playlist_config.get("playlist_name")
-            per_plugin_timeout = int(startup_playlist_config.get("wait_seconds", 120))
+            wait_seconds = int(startup_playlist_config.get("wait_seconds", 30))
             shutdown_after = bool(startup_playlist_config.get("shutdown_after_refresh", False))
 
             playlist_manager = device_config.get_playlist_manager()
             playlist = playlist_manager.get_playlist(playlist_name)
-
+            
             if not playlist:
-                logger.error("Startup playlist '%s' not found", playlist_name)
-            elif not getattr(playlist, "plugins", None):
-                logger.error("Startup playlist '%s' has no plugins", playlist_name)
+                logger.error(f"Startup playlist '{playlist_name}' not found in playlists.")
+            elif not playlist.plugins:
+                logger.error(f"Startup playlist '{playlist_name}' has no plugins to display.")
             else:
-                logger.info("Running startup playlist once: %s", playlist_name)
-
-                for entry in playlist.plugins:
-                    # entry is the saved playlist entry (plugin instance / settings)
-                    pr = PlaylistRefresh(playlist, entry, force=True)
-
-                    # Preferred: if manual_update accepts a completion_event, wait on it
-                    done = threading.Event()
-                    try:
-                        refresh_task.manual_update(pr, completion_event=done)
-                        done.wait(timeout=per_plugin_timeout)
-                    except TypeError:
-                        # fallback if manual_update doesn't accept completion_event:
-                        # call it (may be synchronous) and then wait a short grace period
-                        refresh_task.manual_update(pr)
-                        time.sleep(min(10, per_plugin_timeout))
+                plugin_instance = playlist.plugins[0]
+                logger.info(f"Running startup playlist '{playlist_name}' with first plugin: '{plugin_instance.name}'")
+                
+                refresh_task.manual_update(PlaylistRefresh(playlist, plugin_instance, force=True))
+                
+                logger.info(f"Waiting {wait_seconds}s for display refresh to finish.")
+                time.sleep(wait_seconds)
 
                 if shutdown_after:
-                    logger.info("Startup one-shot finished; shutting down.")
+                    logger.info("Shutdown requested after startup playlist display. Shutting down now.")
                     os.system("sudo shutdown -h now")
-        except Exception:
-            logger.exception("Startup playlist one-shot failed")
-    # --- END STARTUP PLAYLIST ONE-SHOT RUN ---
+        except Exception as e:
+            logger.exception(f"Startup playlist failed: {e}")
+    elif os.path.exists(bypass_file):
+        logger.info(f"Bypass file '{bypass_file}' found. Skipping startup playlist.")
+        os.remove(bypass_file)
+    # --- END STARTUP PLAYLIST HANDLER ---
 
     # display default inkypi image on startup
     if device_config.get_config("startup") is True:
