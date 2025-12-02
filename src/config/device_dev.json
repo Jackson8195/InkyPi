@@ -3,10 +3,5 @@
     "display_type": "mock",
     "resolution": [800, 480],
     "orientation": "horizontal",
-    "startup": true,
-    "startup_playlist": {
-        "playlist_name": "WeatherAutoRun",
-        "wait_seconds": 30,
-        "shutdown_after_refresh": true
-    }
+    "startup": true
 }
