@@ -135,10 +135,13 @@ if __name__ == '__main__':
                         GPIO.setmode(GPIO.BCM)
                         GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
                         GPIO.cleanup()
-                        time.sleep(1)  # Give it a moment to release
+                        time.sleep(0.5)  # Give it a moment to release
+                    except ImportError:
+                        logger.info("RPi.GPIO not available (running on non-Pi hardware)")
                     except Exception as e:
                         logger.warning("Failed to release GPIO 17: %s", e)
                     
+                    logger.info("Executing shutdown command")
                     os.system("sudo shutdown -h now")
         except Exception:
             logger.exception("Startup playlist one-shot failed")
