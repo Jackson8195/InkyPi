@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
                 if shutdown_after:
                     logger.info("Startup one-shot finished; waiting for display to settle before shutdown.")
-                    time.sleep(30)  # Give Inky Impression time to release BUSY signal
+                    #time.sleep(30)  # Give Inky Impression time to release BUSY signal
                     logger.info("Executing shutdown command")
                     os.system("sudo shutdown -h now")
         except Exception:
