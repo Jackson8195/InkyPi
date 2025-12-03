@@ -126,21 +126,8 @@ if __name__ == '__main__':
                         time.sleep(min(10, per_plugin_timeout))
 
                 if shutdown_after:
-                    logger.info("Startup one-shot finished; shutting down.")
-                    
-                    # Release Inky Impression BUSY pin (GPIO17) to allow Witty Pi to cut power
-                    try:
-                        logger.info("Releasing GPIO 17 (Inky Impression BUSY pin)")
-                        import RPi.GPIO as GPIO
-                        GPIO.setmode(GPIO.BCM)
-                        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_OFF)
-                        GPIO.cleanup()
-                        time.sleep(0.5)  # Give it a moment to release
-                    except ImportError:
-                        logger.info("RPi.GPIO not available (running on non-Pi hardware)")
-                    except Exception as e:
-                        logger.warning("Failed to release GPIO 17: %s", e)
-                    
+                    logger.info("Startup one-shot finished; waiting for display to settle before shutdown.")
+                    time.sleep(30)  # Give Inky Impression time to release BUSY signal
                     logger.info("Executing shutdown command")
                     os.system("sudo shutdown -h now")
         except Exception:
