@@ -11,20 +11,39 @@ STATE_FILE = os.path.join(
 )
 
 def load_state():
+    """
+    Load uptime state from JSON file.
+    Ensures all expected keys exist.
+    """
     if not os.path.exists(STATE_FILE):
+        # First run — initialize state
         return {
             "full_charge_time": None,
             "total_uptime_seconds": 0,
             "last_boot_time": datetime.now(timezone.utc).isoformat()
         }
+
     with open(STATE_FILE, "r") as f:
-        return json.load(f)
+        state = json.load(f)
+
+    # Ensure expected keys exist
+    state.setdefault("full_charge_time", None)
+    state.setdefault("total_uptime_seconds", 0)
+    state.setdefault("last_boot_time", datetime.now(timezone.utc).isoformat())
+
+    return state
 
 def save_state(state):
+    """
+    Save uptime state to JSON file.
+    """
     with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
 def seconds_to_hms(sec):
+    """
+    Convert seconds to H:M:S string.
+    """
     h = sec // 3600
     m = (sec % 3600) // 60
     s = sec % 60
@@ -37,8 +56,13 @@ def update_uptime():
     Returns (total_uptime_hms, since_full_charge_hms or None).
     """
     state = load_state()
-    now = datetime.now()  # local time
-    boot_time = datetime.fromisoformat(state["last_boot_time"])
+    now = datetime.now(timezone.utc)  # use UTC consistently
+
+    # Safely parse last_boot_time
+    try:
+        boot_time = datetime.fromisoformat(state["last_boot_time"])
+    except Exception:
+        boot_time = now  # fallback if corrupted
 
     # Add uptime of this cycle
     uptime_this_cycle = int((now - boot_time).total_seconds())
@@ -48,8 +72,11 @@ def update_uptime():
 
     # Full charge tracking
     if state["full_charge_time"]:
-        fc_time = datetime.fromisoformat(state["full_charge_time"])
-        since_full_charge = seconds_to_hms(int((now - fc_time).total_seconds()))
+        try:
+            fc_time = datetime.fromisoformat(state["full_charge_time"])
+            since_full_charge = seconds_to_hms(int((now - fc_time).total_seconds()))
+        except Exception:
+            since_full_charge = None
     else:
         since_full_charge = None
 
@@ -59,14 +86,12 @@ def update_uptime():
 
     return total_hms, since_full_charge
 
-
 def set_full_charge_now():
     """
     Reset full charge marker to NOW.
     """
     state = load_state()
-    now = datetime.now()  # local time
-    state["full_charge_time"] = now.isoformat()  # ✅ convert to string
+    now = datetime.now(timezone.utc)  # use UTC
+    state["full_charge_time"] = now.isoformat()
     save_state(state)
     return state["full_charge_time"]
-
