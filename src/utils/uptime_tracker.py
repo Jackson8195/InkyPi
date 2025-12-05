@@ -37,7 +37,7 @@ def update_uptime():
     Returns (total_uptime_hms, since_full_charge_hms or None).
     """
     state = load_state()
-    now = now = datetime.now()  # local time
+    now = datetime.now()  # local time
     boot_time = datetime.fromisoformat(state["last_boot_time"])
 
     # Add uptime of this cycle
@@ -66,6 +66,7 @@ def set_full_charge_now():
     """
     state = load_state()
     now = datetime.now()  # local time
-    state["full_charge_time"] = now
+    state["full_charge_time"] = now.isoformat()  # ✅ convert to string
     save_state(state)
-    return now
+    return state["full_charge_time"]
+
