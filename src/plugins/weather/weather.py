@@ -1,4 +1,5 @@
 from plugins.base_plugin.base_plugin import BasePlugin
+from src.utils.uptime_tracker import get_total_uptime, get_uptime_since_full_charge
 from PIL import Image
 import os
 import requests
@@ -128,11 +129,16 @@ class Weather(BasePlugin):
             last_refresh_time = now.strftime("%Y-%m-%d %I:%M %p")
         template_params["last_refresh_time"] = last_refresh_time
 
+        # Add uptime values
+        template_params["total_uptime"] = get_total_uptime()
+        template_params["battery_uptime"] = get_uptime_since_full_charge()
+
         image = self.render_image(dimensions, "weather.html", "weather.css", template_params)
 
         if not image:
             raise RuntimeError("Failed to take screenshot, please check logs.")
         return image
+
 
     def parse_weather_data(self, weather_data, aqi_data, tz, units, time_format):
         current = weather_data.get("current")

@@ -7,6 +7,10 @@
 <div class="weather-dashboard">
   {% if plugin_settings.displayRefreshTime == "true" %}
   <div class="last-refresh">Last refresh: {{ last_refresh_time }}</div>
+  <div class="uptime-info">
+    Total uptime: {{ total_uptime }}<br>
+    Battery uptime: {{ battery_uptime }}
+  </div
   {% endif %}
   <!-- Current Date -->
   <div class="header">
