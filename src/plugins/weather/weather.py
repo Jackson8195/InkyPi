@@ -129,10 +129,10 @@ class Weather(BasePlugin):
             last_refresh_time = now.strftime("%Y-%m-%d %I:%M %p")
         template_params["last_refresh_time"] = last_refresh_time
 
-# Add uptime values
-total, since_charge = update_uptime()
-template_params["total_uptime"] = total
-template_params["battery_uptime"] = since_charge
+        # Add uptime values
+        total, since_charge = update_uptime()
+        template_params["total_uptime"] = total
+        template_params["battery_uptime"] = since_charge
 
         image = self.render_image(dimensions, "weather.html", "weather.css", template_params)
 
