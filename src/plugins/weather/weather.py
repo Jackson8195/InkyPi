@@ -1,5 +1,5 @@
 from plugins.base_plugin.base_plugin import BasePlugin
-from src.utils.uptime_tracker import get_total_uptime, get_uptime_since_full_charge
+from utils.uptime_tracker import get_total_uptime, get_uptime_since_full_charge
 from PIL import Image
 import os
 import requests
