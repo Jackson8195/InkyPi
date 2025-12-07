@@ -1,5 +1,4 @@
 from plugins.base_plugin.base_plugin import BasePlugin
-from utils.uptime_tracker import update_uptime
 from PIL import Image
 import os
 import requests
@@ -129,10 +128,8 @@ class Weather(BasePlugin):
             last_refresh_time = now.strftime("%Y-%m-%d %I:%M %p")
         template_params["last_refresh_time"] = last_refresh_time
 
-        # Add uptime values
-        total, since_charge = update_uptime()
-        template_params["total_uptime"] = total
-        template_params["battery_uptime"] = since_charge
+        template_params["total_uptime"] = get_total_runtime()
+        template_params["battery_uptime"] = get_battery_uptime()
 
         image = self.render_image(dimensions, "weather.html", "weather.css", template_params)
 
