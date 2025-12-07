@@ -8,6 +8,7 @@ from astral import moon
 import pytz
 from io import BytesIO
 import math
+from utils.app_utils import get_total_runtime, get_battery_uptime
 
 logger = logging.getLogger(__name__)
         
