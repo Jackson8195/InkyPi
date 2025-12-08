@@ -283,18 +283,28 @@
   line-height: 140%;
 }
 
-.battery-meter {
-  margin-top: 6px;
+.system-info {
+  font-size: 0.9em;
+  color: #333;
+  margin-top: 2px;
+  line-height: 1.4;
 }
+
+.battery-meter {
+  margin-top: 4px;
+}
+
 .battery-label {
-  font-size: 0.85em;
-  color: #666;
+  font-size: 0.9em;
+  color: #333;
   margin-bottom: 2px;
 }
+
 .battery-bar {
   display: flex;
   gap: 2px;
 }
+
 .battery-seg {
   width: 14px;
   height: 10px;
@@ -302,6 +312,7 @@
   border-radius: 2px;
   background: #f0f0f0;
 }
+
 .battery-seg.filled {
   background: #4caf50;
 }
