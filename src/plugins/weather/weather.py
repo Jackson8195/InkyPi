@@ -1,5 +1,5 @@
 from plugins.base_plugin.base_plugin import BasePlugin
-from utils.uptime_tracker import get_total_uptime, get_uptime_since_full_charge
+from utils.uptime_tracker import get_total_uptime, get_uptime_since_full_charge, read_witty_vin, vin_to_percent
 from PIL import Image
 import os
 import requests
@@ -132,6 +132,11 @@ class Weather(BasePlugin):
         # Add uptime values
         template_params["total_uptime"] = get_total_uptime()
         template_params["battery_uptime"] = get_uptime_since_full_charge()
+
+        # Add voltage readings
+        vin = read_witty_vin()
+        template_params["battery_voltage"] = vin
+        template_params["battery_percent"] = vin_to_percent(vin)
 
         image = self.render_image(dimensions, "weather.html", "weather.css", template_params)
 

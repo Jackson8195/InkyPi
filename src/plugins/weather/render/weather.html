@@ -8,9 +8,23 @@
   {% if plugin_settings.displayRefreshTime == "true" %}
   <div class="last-refresh">Last refresh: {{ last_refresh_time }}</div>
   <div class="uptime-info">
-    Total uptime: {{ total_uptime }}<br>
-    Battery uptime: {{ battery_uptime }}
-  </div
+    Total pi uptime: {{ total_uptime }}<br>
+    Since last charge: {{ battery_uptime }}
+  </div>
+
+  <!-- Zonai-style battery meter -->
+  <div class="battery-meter">
+    <div class="battery-label">
+      Battery: {{ battery_percent|default("–") }}% ({{ battery_voltage|default("–") }} V)
+    </div>
+    <div class="battery-bar">
+      {% set segments = 8 %}
+      {% set filled = ((battery_percent|default(0) / 100.0) * segments) | round(0, 'floor') | int %}
+      {% for i in range(segments) %}
+        <div class="battery-seg {% if i < filled %}filled{% endif %}"></div>
+      {% endfor %}
+    </div>
+  </div>
   {% endif %}
   <!-- Current Date -->
   <div class="header">

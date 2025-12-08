@@ -1,6 +1,8 @@
 import json
 import os
 from datetime import datetime, timezone
+import re
+from pathlib import Path
 
 # Path to uptime.json inside /src/config/
 STATE_FILE = os.path.join(
@@ -95,3 +97,23 @@ def set_full_charge_now():
     state["full_charge_time"] = now.isoformat()
     save_state(state)
     return state["full_charge_time"]
+
+WITTY_LOG = Path("/home/pi/wittypi4/wittyPi.log")
+
+def read_witty_vin():
+    try:
+        lines = WITTY_LOG.read_text().strip().splitlines()
+        # find the last line containing "Current Vin"
+        for line in reversed(lines):
+            m = re.search(r"Current\s+Vin\s*=\s*([\d.]+)", line, re.IGNORECASE)
+            if m:
+                return float(m.group(1))
+    except Exception:
+        pass
+    return None
+
+def vin_to_percent(v, v_empty=3.3, v_full=4.2):
+    if v is None:
+        return None
+    pct = (v - v_empty) / (v_full - v_empty) * 100
+    return max(0, min(100, round(pct)))
