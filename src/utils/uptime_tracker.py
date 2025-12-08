@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timezone
 import re
 from pathlib import Path
+import time
 
 STATE_FILE = os.path.join(
     os.path.dirname(__file__),  # /src/utils
@@ -13,29 +14,22 @@ STATE_FILE = os.path.join(
 )
 
 def load_state():
-    """Load uptime state from JSON file. Ensures all expected keys exist."""
-    if not os.path.exists(STATE_FILE):
-        # Initialize state for first run
-        state = {
-            "battery_full_charge_time": None,
+    state_file = Path(STATE_FILE)
+    
+    # If file doesn't exist, create with defaults
+    if not state_file.exists():
+        default_state = {
+            "full_charge_time": time.time(),
             "total_runtime_seconds": 0,
-            "last_update": datetime.now(timezone.utc).isoformat()
+            "battery_uptime_seconds": 0
         }
-        save_state(state)
-        return state
-
-    with open(STATE_FILE, "r") as f:
-        try:
-            state = json.load(f)
-        except json.JSONDecodeError:
-            state = {}
-
-    # Ensure all keys exist
-    state.setdefault("battery_full_charge_time", None)
-    state.setdefault("total_runtime_seconds", 0)
-    state.setdefault("last_update", datetime.now(timezone.utc).isoformat())
-
-    return state
+        with open(state_file, 'w') as f:
+            json.dump(default_state, f)
+        return default_state
+    
+    # File exists — load it without overwriting
+    with open(state_file, 'r') as f:
+        return json.load(f)
 
 def save_state(state):
     """Save uptime state to JSON file."""
@@ -121,4 +115,3 @@ def vin_to_percent(v, v_empty=3.3, v_full=4.2):
         return None
     pct = (v - v_empty) / (v_full - v_empty) * 100
     return max(0, min(100, round(pct)))
-    return state["battery_full_charge_time"]
