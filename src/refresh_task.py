@@ -7,6 +7,7 @@ import pytz
 from datetime import datetime, timezone
 from plugins.plugin_registry import get_plugin_instance
 from utils.image_utils import compute_image_hash
+from utils.battery_utils import get_battery_metrics
 from model import RefreshInfo, PlaylistManager
 from PIL import Image
 
@@ -197,8 +198,20 @@ class RefreshTask:
             'net_io': {
                 'bytes_sent': psutil.net_io_counters().bytes_sent,
                 'bytes_recv': psutil.net_io_counters().bytes_recv
-            }
+            },
+            'battery': get_battery_metrics()
         }
+        
+        # Add CPU temperature if available (Raspberry Pi)
+        try:
+            temps = psutil.sensors_temperatures()
+            if 'cpu_thermal' in temps:
+                metrics['cpu_temperature'] = temps['cpu_thermal'][0].current
+            elif 'cpu-thermal' in temps:
+                metrics['cpu_temperature'] = temps['cpu-thermal'][0].current
+        except (AttributeError, KeyError):
+            # Temperature sensors not available on this platform
+            pass
 
         logger.info(f"System Stats: {metrics}")
 

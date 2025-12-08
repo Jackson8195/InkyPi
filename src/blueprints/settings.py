@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, render_template, Response
 from utils.time_utils import calculate_seconds
+from utils.battery_utils import get_battery_metrics
 from datetime import datetime, timedelta
 import os
 import pytz
@@ -143,4 +144,29 @@ def download_logs():
     except Exception as e:
         logger.error(f"Error reading logs: {e}")
         return Response(f"Error reading logs: {e}", status=500, mimetype="text/plain")
+
+@settings_bp.route('/battery-status')
+def battery_status():
+    """
+    Get current battery status and metrics.
+    
+    Returns JSON with battery information including:
+    - available: Whether battery monitoring is available
+    - backend: The monitoring backend being used
+    - percentage: Battery percentage (if available)
+    - voltage: Battery voltage in volts (if available)
+    - current: Current draw in mA (if available)
+    - power: Power in watts (if available)
+    - status: Battery status (Charging/Discharging/Full/etc.)
+    - temperature: Battery temperature in Celsius (if available)
+    """
+    try:
+        metrics = get_battery_metrics()
+        return jsonify(metrics)
+    except Exception as e:
+        logger.error(f"Error reading battery status: {e}")
+        return jsonify({
+            "available": False,
+            "error": str(e)
+        }), 500
 
