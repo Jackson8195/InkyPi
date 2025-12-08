@@ -135,8 +135,8 @@ class Weather(BasePlugin):
 
         # Add voltage readings
         vin = read_witty_vin()
-        template_params["battery_voltage"] = vin
-        template_params["battery_percent"] = vin_to_percent(vin)
+        template_params["battery_voltage"] = vin if vin else "–"
+        template_params["battery_percent"] = vin_to_percent(vin) if vin else 0
 
         image = self.render_image(dimensions, "weather.html", "weather.css", template_params)
 
