@@ -100,6 +100,17 @@ To update your InkyPi with the latest code changes, follow these steps:
     ```
 This process ensures that any new updates, including code changes and additional dependencies, are properly applied without requiring a full reinstallation.
 
+## Battery Power Monitoring
+
+InkyPi includes comprehensive battery power monitoring for Raspberry Pi systems with UPS HATs or battery systems. The monitoring system automatically detects compatible hardware and provides real-time battery metrics including percentage, voltage, current, and charging status.
+
+Supported hardware includes:
+- UPS HATs with Linux power supply interface (PiJuice, Waveshare UPS HAT, Geekworm X728, etc.)
+- INA219-based power monitors
+- Custom battery monitoring solutions
+
+For setup instructions and detailed information, see [Battery Monitoring Guide](./docs/battery_monitoring.md).
+
 ## Uninstall
 To install InkyPi, simply run the following command:
 
