@@ -19,7 +19,7 @@ def load_state():
     # If file doesn't exist, create with defaults
     if not state_file.exists():
         default_state = {
-            "full_charge_time": time.time(),
+            "battery_full_charge_time": time.time(),  # Changed from "full_charge_time"
             "total_runtime_seconds": 0,
             "battery_uptime_seconds": 0
         }
@@ -94,7 +94,7 @@ def set_full_charge_now():
     state["total_runtime_seconds"] = 0
     state["last_update"] = now.isoformat()
     save_state(state)
-    return state["full_charge_time"]
+    return state["battery_full_charge_time"]
 
 WITTY_LOG = Path("/home/pi/wittypi4/wittyPi.log")
 
