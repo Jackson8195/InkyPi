@@ -9,6 +9,7 @@ from astral import moon
 import pytz
 from io import BytesIO
 import math
+from utils.uptime_tracker import get_total_runtime, get_battery_uptime
 
 logger = logging.getLogger(__name__)
         
@@ -129,9 +130,8 @@ class Weather(BasePlugin):
             last_refresh_time = now.strftime("%Y-%m-%d %I:%M %p")
         template_params["last_refresh_time"] = last_refresh_time
 
-        # Add uptime values
-        template_params["total_uptime"] = get_total_uptime()
-        template_params["battery_uptime"] = get_uptime_since_full_charge()
+        template_params["total_uptime"] = get_total_runtime()
+        template_params["battery_uptime"] = get_battery_uptime()
 
         # Add voltage readings
         vin = read_witty_vin()

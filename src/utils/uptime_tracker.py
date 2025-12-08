@@ -1,100 +1,104 @@
+# src/utils/uptime_tracker.py
 import json
 import os
 from datetime import datetime, timezone
 import re
 from pathlib import Path
 
-# Path to uptime.json inside /src/config/
 STATE_FILE = os.path.join(
-    os.path.dirname(__file__),   # /src/utils
+    os.path.dirname(__file__),  # /src/utils
     "..",                        # /src
     "config",
     "uptime.json"
 )
 
 def load_state():
-    """
-    Load uptime state from JSON file.
-    Ensures all expected keys exist.
-    """
+    """Load uptime state from JSON file. Ensures all expected keys exist."""
     if not os.path.exists(STATE_FILE):
-        # First run — initialize state
-        return {
-            "full_charge_time": None,
-            "total_uptime_seconds": 0,
-            "last_boot_time": datetime.now(timezone.utc).isoformat()
+        # Initialize state for first run
+        state = {
+            "battery_full_charge_time": None,
+            "total_runtime_seconds": 0,
+            "last_update": datetime.now(timezone.utc).isoformat()
         }
+        save_state(state)
+        return state
 
     with open(STATE_FILE, "r") as f:
-        state = json.load(f)
+        try:
+            state = json.load(f)
+        except json.JSONDecodeError:
+            state = {}
 
-    # Ensure expected keys exist
-    state.setdefault("full_charge_time", None)
-    state.setdefault("total_uptime_seconds", 0)
-    state.setdefault("last_boot_time", datetime.now(timezone.utc).isoformat())
+    # Ensure all keys exist
+    state.setdefault("battery_full_charge_time", None)
+    state.setdefault("total_runtime_seconds", 0)
+    state.setdefault("last_update", datetime.now(timezone.utc).isoformat())
 
     return state
 
 def save_state(state):
-    """
-    Save uptime state to JSON file.
-    """
+    """Save uptime state to JSON file."""
     with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
 def seconds_to_hms(sec):
-    """
-    Convert seconds to H:M:S string.
-    """
+    """Convert seconds to H:M:S string."""
     h = sec // 3600
     m = (sec % 3600) // 60
     s = sec % 60
     return f"{h}h {m}m {s}s"
 
-def update_uptime():
+def record_runtime_slice():
     """
-    Call this ONCE per boot or wake cycle from inkypi.py.
-    Updates cumulative uptime and time since 'full charge'.
-    Returns (total_uptime_hms, since_full_charge_hms or None).
+    Update cumulative runtime since last full charge.
+    Called from main Python code or shutdown script.
     """
     state = load_state()
-    now = datetime.now(timezone.utc)  # use UTC consistently
+    now = datetime.now(timezone.utc)
 
-    # Safely parse last_boot_time
     try:
-        boot_time = datetime.fromisoformat(state["last_boot_time"])
+        last_update = datetime.fromisoformat(state.get("last_update", now.isoformat()))
     except Exception:
-        boot_time = now  # fallback if corrupted
+        last_update = now
 
-    # Add uptime of this cycle
-    uptime_this_cycle = int((now - boot_time).total_seconds())
-    state["total_uptime_seconds"] += uptime_this_cycle
+    delta = int((now - last_update).total_seconds())
+    if delta < 0:
+        delta = 0
 
-    total_hms = seconds_to_hms(state["total_uptime_seconds"])
-
-    # Full charge tracking
-    if state["full_charge_time"]:
-        try:
-            fc_time = datetime.fromisoformat(state["full_charge_time"])
-            since_full_charge = seconds_to_hms(int((now - fc_time).total_seconds()))
-        except Exception:
-            since_full_charge = None
-    else:
-        since_full_charge = None
-
-    # Update timestamp for next cycle
-    state["last_boot_time"] = now.isoformat()
+    state["total_runtime_seconds"] += delta
+    state["last_update"] = now.isoformat()
     save_state(state)
 
-    return total_hms, since_full_charge
+    return state["total_runtime_seconds"]
+
+def get_total_runtime():
+    """Return H:M:S string for total runtime since last full charge."""
+    state = load_state()
+    return seconds_to_hms(state.get("total_runtime_seconds", 0))
+
+def get_battery_uptime():
+    """Return H:M:S string since last full charge, or None if not set."""
+    state = load_state()
+    fc_time = state.get("battery_full_charge_time")
+    if not fc_time:
+        return None
+
+    now = datetime.now(timezone.utc)
+    try:
+        fc = datetime.fromisoformat(fc_time)
+    except Exception:
+        return None
+
+    return seconds_to_hms(int((now - fc).total_seconds()))
 
 def set_full_charge_now():
-    """
-    Reset full charge marker to NOW.
-    """
+    """Reset full charge timestamp to current time and zero runtime."""
     state = load_state()
-    now = datetime.now(timezone.utc)  # use UTC
-    state["full_charge_time"] = now.isoformat()
+    now = datetime.now(timezone.utc)
+    state["battery_full_charge_time"] = now.isoformat()
+    state["total_runtime_seconds"] = 0
+    state["last_update"] = now.isoformat()
     save_state(state)
     return state["full_charge_time"]
 
@@ -117,3 +121,4 @@ def vin_to_percent(v, v_empty=3.3, v_full=4.2):
         return None
     pct = (v - v_empty) / (v_full - v_empty) * 100
     return max(0, min(100, round(pct)))
+    return state["battery_full_charge_time"]

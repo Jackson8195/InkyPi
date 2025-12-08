@@ -22,7 +22,6 @@ import json
 import logging
 import threading
 import argparse
-from utils.uptime_tracker import update_uptime
 from utils.app_utils import generate_startup_image
 from flask import Flask, request
 from werkzeug.serving import is_running_from_reloader
@@ -87,18 +86,6 @@ app.register_blueprint(playlist_bp)
 register_heif_opener()
 
 if __name__ == '__main__':
-
-    # --- BATTERY UPTIME TRACKING (runs once per boot/wake) ---
-    try:
-        total_uptime, since_charge = update_uptime()
-        logger.info(f"[UPTIME] Total cumulative uptime: {total_uptime}")
-        if since_charge:
-            logger.info(f"[UPTIME] Time since last full charge: {since_charge}")
-        else:
-            logger.info("[UPTIME] Full charge time not set yet.")
-    except Exception as e:
-        logger.exception("Uptime tracker failed: %s", e)
-    # -------------------------------------------------
 
     # start the background refresh task
     refresh_task.start()
