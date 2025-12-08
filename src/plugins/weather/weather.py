@@ -1,5 +1,5 @@
 from plugins.base_plugin.base_plugin import BasePlugin
-from utils.uptime_tracker import get_total_uptime, get_uptime_since_full_charge, read_witty_vin, vin_to_percent
+from utils.uptime_tracker import get_total_runtime, get_battery_uptime, read_witty_vin, vin_to_percent
 from PIL import Image
 import os
 import requests
