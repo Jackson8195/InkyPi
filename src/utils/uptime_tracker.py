@@ -96,7 +96,7 @@ def set_full_charge_now():
     save_state(state)
     return state["battery_full_charge_time"]
 
-WITTY_LOG = Path("/home/pi/wittypi4/wittyPi.log")
+WITTY_LOG = Path("/home/pi/wittypi/wittyPi.log")
 
 def read_witty_vin():
     try:
