@@ -33,6 +33,7 @@
   text-align: right;
   font-weight: bold;
   padding: 0.3dvh 0.5dvw;
+  z-index: 10;
 }
 
 .weather-dashboard {
@@ -300,9 +301,13 @@
 }
 
 .system-info {
+  position: absolute;
+  top: 2.5dvh;
+  left: 0.5dvw;
   font-size: 0.9em;
   color: #333;
   line-height: 1.4;
+  z-index: 10;
 }
 
 .battery-meter {
