@@ -11,15 +11,15 @@
       <div>Total pi uptime: {{ total_uptime }}</div>
       <div>Since last charge: {{ battery_uptime }}</div>
       <div class="battery-meter">
-        <div class="battery-label">
-          Battery: {{ battery_percent|default("–") }}% ({{ battery_voltage|default("–") }} V)
-        </div>
         <div class="battery-bar">
           {% set segments = 8 %}
           {% set filled = ((battery_percent|default(0) / 100.0) * segments) | round(0, 'floor') | int %}
-          {% for i in range(segments) %}
-            <div class="battery-seg {% if i < filled %}filled{% endif %}"></div>
+          {% for i in range(1, segments + 1) %}
+            <div class="battery-seg {% if i <= filled %}filled{% endif %}"></div>
           {% endfor %}
+        </div>
+        <div class="battery-label">
+          {{ battery_percent|default("–") }}% ({{ battery_voltage|default("–") }} V)
         </div>
       </div>
     </div>
