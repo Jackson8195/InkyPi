@@ -43,7 +43,7 @@ def seconds_to_hms(sec):
     s = sec % 60
     return f"{h}h {m}m {s}s"
 
-def record_runtime_slice():
+def append_runtime():
     """
     Update cumulative runtime since last full charge.
     Called from main Python code or shutdown script.
