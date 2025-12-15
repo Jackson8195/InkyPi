@@ -132,7 +132,7 @@ if __name__ == '__main__':
                     # Run Witty Pi's BeforeShutdown script to record uptime before shutdown
                     logger.info("Running Witty Pi BeforeShutdown script")
                     try:
-                        result = subprocess.run(["sudo", "/home/pi/wittypi4/BeforeShutdown.sh"], 
+                        result = subprocess.run(["sudo", "/home/pi/wittypi/BeforeShutdown.sh"], 
                                               capture_output=True, text=True, timeout=10)
                         if result.returncode != 0:
                             logger.warning(f"BeforeShutdown.sh returned {result.returncode}: {result.stderr}")
