@@ -334,27 +334,26 @@
   background: #f0f0f0;
 }
 
+/* Default: 1-2 segments filled = all red */
 .battery-seg.filled {
-  background: #4caf50; /* Default green */
-}
-
-/* Red for 1-2 segments (0-25%) */
-.battery-seg:nth-child(-n+2).filled {
   background: #f44336;
 }
 
-/* Orange for 3-4 segments (25-50%) */
-.battery-seg:nth-child(-n+4).filled {
+/* 3-4 segments filled = all orange */
+.battery-bar:has(.battery-seg:nth-child(3).filled) .battery-seg.filled,
+.battery-bar:has(.battery-seg:nth-child(4).filled) .battery-seg.filled {
   background: #ff9800;
 }
 
-/* Yellow for 5-6 segments (50-75%) */
-.battery-seg:nth-child(-n+6).filled {
+/* 5-6 segments filled = all yellow */
+.battery-bar:has(.battery-seg:nth-child(5).filled) .battery-seg.filled,
+.battery-bar:has(.battery-seg:nth-child(6).filled) .battery-seg.filled {
   background: #cddc39;
 }
 
-/* Green for 7-8 segments (75-100%) */
-.battery-seg:nth-child(-n+8).filled {
+/* 7-8 segments filled = all green */
+.battery-bar:has(.battery-seg:nth-child(7).filled) .battery-seg.filled,
+.battery-bar:has(.battery-seg:nth-child(8).filled) .battery-seg.filled {
   background: #4caf50;
 }
 
