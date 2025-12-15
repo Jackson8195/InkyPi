@@ -22,6 +22,7 @@ import json
 import logging
 import threading
 import argparse
+import subprocess
 from utils.app_utils import generate_startup_image
 from flask import Flask, request
 from werkzeug.serving import is_running_from_reloader
@@ -126,10 +127,27 @@ if __name__ == '__main__':
                         time.sleep(min(10, per_plugin_timeout))
 
                 if shutdown_after:
-                    logger.info("Startup one-shot finished; waiting for display to settle before shutdown.")
-                    #time.sleep(30)  # Give Inky Impression time to release BUSY signal
+                    logger.info("Startup one-shot finished; shutting down.")
+                    
+                    # Run Witty Pi's BeforeShutdown script to record uptime before shutdown
+                    logger.info("Running Witty Pi BeforeShutdown script")
+                    try:
+                        result = subprocess.run(["sudo", "/home/pi/wittypi4/BeforeShutdown.sh"], 
+                                              capture_output=True, text=True, timeout=10)
+                        if result.returncode != 0:
+                            logger.warning(f"BeforeShutdown.sh returned {result.returncode}: {result.stderr}")
+                    except subprocess.TimeoutExpired:
+                        logger.warning("BeforeShutdown.sh timed out")
+                    except Exception as e:
+                        logger.warning(f"Failed to run BeforeShutdown.sh: {e}")
+                    
                     logger.info("Executing shutdown command")
-                    os.system("sudo shutdown -h now")
+                    try:
+                        subprocess.run(["sudo", "shutdown", "-h", "now"], check=True)
+                    except subprocess.CalledProcessError as e:
+                        logger.error(f"Shutdown command failed: {e}")
+                    except Exception as e:
+                        logger.error(f"Unexpected error during shutdown: {e}")
         except Exception:
             logger.exception("Startup playlist one-shot failed")
     # --- END STARTUP PLAYLIST ONE-SHOT RUN ---

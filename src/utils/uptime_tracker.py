@@ -36,12 +36,13 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
-def seconds_to_hms(sec):
-    """Convert seconds to H:M:S string."""
-    h = sec // 3600
+def seconds_to_dhms(sec):
+    """Convert seconds to D:H:M:S string."""
+    d = sec // 86400
+    h = (sec % 86400) // 3600
     m = (sec % 3600) // 60
     s = sec % 60
-    return f"{h}h {m}m {s}s"
+    return f"{d}d {h}h {m}m {s}s"
 
 def append_runtime():
     """
@@ -67,12 +68,12 @@ def append_runtime():
     return state["total_runtime_seconds"]
 
 def get_total_runtime():
-    """Return H:M:S string for total runtime since last full charge."""
+    """Return D:H:M:S string for total runtime since last full charge."""
     state = load_state()
-    return seconds_to_hms(state.get("total_runtime_seconds", 0))
+    return seconds_to_dhms(state.get("total_runtime_seconds", 0))
 
 def get_battery_uptime():
-    """Return H:M:S string since last full charge, or None if not set."""
+    """Return D:H:M:S string since last full charge, or None if not set."""
     state = load_state()
     fc_time = state.get("battery_full_charge_time")
     if not fc_time:
@@ -84,7 +85,7 @@ def get_battery_uptime():
     except Exception:
         return None
 
-    return seconds_to_hms(int((now - fc).total_seconds()))
+    return seconds_to_dhms(int((now - fc).total_seconds()))
 
 def set_full_charge_now():
     """Reset full charge timestamp to current time and zero runtime."""
