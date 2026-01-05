@@ -24,6 +24,7 @@ import threading
 import argparse
 import subprocess
 from utils.app_utils import generate_startup_image
+from utils.mount_detection import MountSelector, MCP23017NotAvailable
 from flask import Flask, request
 from werkzeug.serving import is_running_from_reloader
 from config import Config
@@ -95,6 +96,27 @@ if __name__ == '__main__':
     # Persistent bypass file: create ~/.inkypi_skip_startup to skip startup playlist
     bypass_file = os.path.expanduser("~/.inkypi_skip_startup")
     startup_playlist_config = device_config.get_config("startup_playlist", default=None)
+
+    mount_selector_config = device_config.get_config("mount_startup_playlists", default=None)
+    if mount_selector_config and mount_selector_config.get("enabled"):
+        existing_wait = (startup_playlist_config or {}).get("wait_seconds", 120)
+        existing_shutdown = (startup_playlist_config or {}).get("shutdown_after_refresh", False)
+        try:
+            selector = MountSelector.from_config(mount_selector_config, logger=logger)
+            detection = selector.detect()
+
+            if detection.all_closed:
+                startup_playlist_config = None
+            elif detection.playlist_name:
+                startup_playlist_config = {
+                    "playlist_name": detection.playlist_name,
+                    "wait_seconds": int(mount_selector_config.get("wait_seconds", existing_wait)),
+                    "shutdown_after_refresh": bool(mount_selector_config.get("shutdown_after_refresh", existing_shutdown)),
+                }
+        except MCP23017NotAvailable as exc:
+            logger.warning("Mount selector disabled: %s", exc)
+        except Exception:
+            logger.exception("Mount selector failed; falling back to configured startup playlist")
 
     if os.path.exists(bypass_file):
         logger.info("Bypass file '%s' found — skipping startup playlist.", bypass_file)
