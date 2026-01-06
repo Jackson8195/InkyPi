@@ -25,6 +25,7 @@ import argparse
 import subprocess
 from utils.app_utils import generate_startup_image
 from utils.mount_detection import MountSelector, MCP23017NotAvailable
+from utils.uptime_tracker import append_runtime, get_total_runtime
 from flask import Flask, request
 from werkzeug.serving import is_running_from_reloader
 from config import Config
@@ -95,28 +96,32 @@ if __name__ == '__main__':
     # --- STARTUP PLAYLIST ONE-SHOT RUN (with bypass file) ---
     # Persistent bypass file: create ~/.inkypi_skip_startup to skip startup playlist
     bypass_file = os.path.expanduser("~/.inkypi_skip_startup")
-    startup_playlist_config = device_config.get_config("startup_playlist", default=None)
-
+    
     mount_selector_config = device_config.get_config("mount_startup_playlists", default=None)
     if mount_selector_config and mount_selector_config.get("enabled"):
-        existing_wait = (startup_playlist_config or {}).get("wait_seconds", 120)
-        existing_shutdown = (startup_playlist_config or {}).get("shutdown_after_refresh", False)
+        # Mount detection replaces startup_playlist config entirely
+        startup_playlist_config = None
         try:
             selector = MountSelector.from_config(mount_selector_config, logger=logger)
             detection = selector.detect()
 
-            if detection.all_closed:
+            if detection.all_open:
                 startup_playlist_config = None
             elif detection.playlist_name:
                 startup_playlist_config = {
                     "playlist_name": detection.playlist_name,
-                    "wait_seconds": int(mount_selector_config.get("wait_seconds", existing_wait)),
-                    "shutdown_after_refresh": bool(mount_selector_config.get("shutdown_after_refresh", existing_shutdown)),
+                    "wait_seconds": int(mount_selector_config.get("wait_seconds", 120)),
+                    "shutdown_after_refresh": bool(mount_selector_config.get("shutdown_after_refresh", False)),
                 }
         except MCP23017NotAvailable as exc:
             logger.warning("Mount selector disabled: %s", exc)
+            startup_playlist_config = None
         except Exception:
-            logger.exception("Mount selector failed; falling back to configured startup playlist")
+            logger.exception("Mount selector failed; no startup playlist will run")
+            startup_playlist_config = None
+    else:
+        # Fall back to static startup_playlist config if mount detection not enabled
+        startup_playlist_config = device_config.get_config("startup_playlist", default=None)
 
     if os.path.exists(bypass_file):
         logger.info("Bypass file '%s' found — skipping startup playlist.", bypass_file)
@@ -149,20 +154,16 @@ if __name__ == '__main__':
                         time.sleep(min(10, per_plugin_timeout))
 
                 if shutdown_after:
-                    logger.info("Startup one-shot finished; shutting down.")
-                    
-                    # Run Witty Pi's BeforeShutdown script to record uptime before shutdown
-                    logger.info("Running Witty Pi BeforeShutdown script")
+                    logger.info("Startup one-shot finished; preparing to shut down.")
+
+                    # Record uptime directly before shutdown
+                    logger.info("Recording uptime before shutdown")
                     try:
-                        result = subprocess.run(["sudo", "/home/pi/wittypi/BeforeShutdown.sh"], 
-                                              capture_output=True, text=True, timeout=10)
-                        if result.returncode != 0:
-                            logger.warning(f"BeforeShutdown.sh returned {result.returncode}: {result.stderr}")
-                    except subprocess.TimeoutExpired:
-                        logger.warning("BeforeShutdown.sh timed out")
+                        total_seconds = append_runtime()
+                        logger.info(f"Uptime recorded: {get_total_runtime()} ({total_seconds}s)")
                     except Exception as e:
-                        logger.warning(f"Failed to run BeforeShutdown.sh: {e}")
-                    
+                        logger.warning(f"Failed to record uptime: {e}")
+
                     logger.info("Executing shutdown command")
                     try:
                         subprocess.run(["sudo", "shutdown", "-h", "now"], check=True)

@@ -11,7 +11,7 @@ class MCP23017NotAvailable(RuntimeError):
 class MountDetection:
     state_bits: str
     playlist_name: Optional[str]
-    all_closed: bool
+    all_open: bool
 
 
 class MCP23017SwitchReader:
@@ -22,7 +22,6 @@ class MCP23017SwitchReader:
         pins: List[int],
         address: int = 0x20,
         pull_up: bool = True,
-        i2c_frequency: int = 400000,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         self.logger = logger or logging.getLogger(__name__)
@@ -45,7 +44,7 @@ class MCP23017SwitchReader:
             "Configuring MCP23017 | address=0x%02X | pins=%s | pull_up=%s", address, pins, pull_up
         )
 
-        i2c = busio.I2C(board.SCL, board.SDA, frequency=i2c_frequency)
+        i2c = busio.I2C(board.SCL, board.SDA)
         mcp = MCP23017(i2c, address=address)
 
         for pin_number in pins:
@@ -67,6 +66,10 @@ class MCP23017SwitchReader:
         """True if every pin is reading low (useful when pull-ups are enabled)."""
         return all(not pin.value for pin in self.pins)
 
+    def all_open(self) -> bool:
+        """True if every pin is reading high (all switches open, no magnets)."""
+        return all(pin.value for pin in self.pins)
+
 
 class MountSelector:
     """Map MCP23017 pin states to a startup playlist selection."""
@@ -75,12 +78,12 @@ class MountSelector:
         self,
         reader: MCP23017SwitchReader,
         state_to_playlist: Dict[str, str],
-        treat_all_closed_as_none: bool = True,
+        treat_all_open_as_none: bool = True,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         self.reader = reader
         self.state_to_playlist = state_to_playlist or {}
-        self.treat_all_closed_as_none = treat_all_closed_as_none
+        self.treat_all_open_as_none = treat_all_open_as_none
         self.logger = logger or logging.getLogger(__name__)
 
     @classmethod
@@ -90,26 +93,25 @@ class MountSelector:
             pins=pins,
             address=config.get("i2c_address", 0x20),
             pull_up=config.get("pull_up", True),
-            i2c_frequency=config.get("i2c_frequency", 400000),
             logger=logger,
         )
         return cls(
             reader=reader,
             state_to_playlist=config.get("state_to_playlist") or {},
-            treat_all_closed_as_none=config.get("all_closed_means_no_mount", True),
+            treat_all_open_as_none=config.get("all_open_means_no_mount", True),
             logger=logger,
         )
 
     def detect(self) -> MountDetection:
         state_bits = self.reader.read_state_bits()
         playlist = self.state_to_playlist.get(state_bits)
-        all_closed = self.reader.all_closed()
+        all_open = self.reader.all_open()
 
-        if all_closed and self.treat_all_closed_as_none:
-            self.logger.info("Mount detection: all switches closed; treating as no mount")
+        if all_open and self.treat_all_open_as_none:
+            self.logger.info("Mount detection: all switches open; treating as no mount")
         elif playlist:
             self.logger.info("Mount detection: state %s -> playlist '%s'", state_bits, playlist)
         else:
             self.logger.info("Mount detection: state %s not mapped", state_bits)
 
-        return MountDetection(state_bits=state_bits, playlist_name=playlist, all_closed=all_closed)
+        return MountDetection(state_bits=state_bits, playlist_name=playlist, all_open=all_open)
