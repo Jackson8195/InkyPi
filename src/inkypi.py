@@ -96,32 +96,36 @@ if __name__ == '__main__':
     # --- STARTUP PLAYLIST ONE-SHOT RUN (with bypass file) ---
     # Persistent bypass file: create ~/.inkypi_skip_startup to skip startup playlist
     bypass_file = os.path.expanduser("~/.inkypi_skip_startup")
-    
-    mount_selector_config = device_config.get_config("mount_startup_playlists", default=None)
-    if mount_selector_config and mount_selector_config.get("enabled"):
-        # Mount detection replaces startup_playlist config entirely
-        startup_playlist_config = None
-        try:
-            selector = MountSelector.from_config(mount_selector_config, logger=logger)
-            detection = selector.detect()
 
-            if detection.all_open:
+    # If bypass is present, skip mount detection entirely
+    if not os.path.exists(bypass_file):
+        mount_selector_config = device_config.get_config("mount_startup_playlists", default=None)
+        if mount_selector_config and mount_selector_config.get("enabled"):
+            # Mount detection replaces startup_playlist config entirely
+            startup_playlist_config = None
+            try:
+                selector = MountSelector.from_config(mount_selector_config, logger=logger)
+                detection = selector.detect()
+
+                if detection.all_open:
+                    startup_playlist_config = None
+                elif detection.playlist_name:
+                    startup_playlist_config = {
+                        "playlist_name": detection.playlist_name,
+                        "wait_seconds": int(mount_selector_config.get("wait_seconds", 120)),
+                        "shutdown_after_refresh": bool(mount_selector_config.get("shutdown_after_refresh", False)),
+                    }
+            except MCP23017NotAvailable as exc:
+                logger.warning("Mount selector disabled: %s", exc)
                 startup_playlist_config = None
-            elif detection.playlist_name:
-                startup_playlist_config = {
-                    "playlist_name": detection.playlist_name,
-                    "wait_seconds": int(mount_selector_config.get("wait_seconds", 120)),
-                    "shutdown_after_refresh": bool(mount_selector_config.get("shutdown_after_refresh", False)),
-                }
-        except MCP23017NotAvailable as exc:
-            logger.warning("Mount selector disabled: %s", exc)
-            startup_playlist_config = None
-        except Exception:
-            logger.exception("Mount selector failed; no startup playlist will run")
-            startup_playlist_config = None
+            except Exception:
+                logger.exception("Mount selector failed; no startup playlist will run")
+                startup_playlist_config = None
+        else:
+            # Fall back to static startup_playlist config if mount detection not enabled
+            startup_playlist_config = device_config.get_config("startup_playlist", default=None)
     else:
-        # Fall back to static startup_playlist config if mount detection not enabled
-        startup_playlist_config = device_config.get_config("startup_playlist", default=None)
+        startup_playlist_config = None
 
     if os.path.exists(bypass_file):
         logger.info("Bypass file '%s' found — skipping startup playlist.", bypass_file)

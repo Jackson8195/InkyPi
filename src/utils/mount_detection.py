@@ -108,10 +108,10 @@ class MountSelector:
         all_open = self.reader.all_open()
 
         if all_open and self.treat_all_open_as_none:
-            self.logger.info("Mount detection: all switches open; treating as no mount")
+            self.logger.info("%s - no mount (all open)", state_bits)
         elif playlist:
-            self.logger.info("Mount detection: state %s -> playlist '%s'", state_bits, playlist)
+            self.logger.info("%s - %s mount detected", state_bits, playlist)
         else:
-            self.logger.info("Mount detection: state %s not mapped", state_bits)
+            self.logger.info("%s - unmapped state", state_bits)
 
         return MountDetection(state_bits=state_bits, playlist_name=playlist, all_open=all_open)
