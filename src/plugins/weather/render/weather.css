@@ -304,7 +304,8 @@
   position: absolute;
   top: 0.5vh;
   left: 0.5dvw;
-  font-size: 0.9em;
+  font-size: min(2dvh, 2vw);
+  font-weight: bold;
   color: #333;
   line-height: 1.4;
   z-index: 10;

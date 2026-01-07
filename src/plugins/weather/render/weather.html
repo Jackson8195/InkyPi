@@ -8,8 +8,6 @@
   <div class="meta-block">
     <div class="last-refresh">Last refresh: {{ last_refresh_time }}</div>
     <div class="system-info">
-      <div>Total pi uptime: {{ total_uptime }}</div>
-      <div>Since last charge: {{ battery_uptime }}</div>
       <div class="battery-meter">
         <div class="battery-bar">
           {% set segments = 8 %}
@@ -22,6 +20,8 @@
           {{ battery_percent|default("–") }}% ({{ battery_voltage|default("–") }} V)
         </div>
       </div>
+      <div>Total pi uptime: {{ total_uptime }}</div>
+      <div>Since last charge: {{ battery_uptime }}</div>
     </div>
   </div>
   {% endif %}
