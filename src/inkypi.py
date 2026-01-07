@@ -44,11 +44,6 @@ from waitress import serve
 
 logger = logging.getLogger(__name__)
 
-
-def _is_oneshot_mode():
-    """Return True when booted in oneshot/battery mode controlled by Witty Pi."""
-    return os.getenv('WITTYPI_ONESHOT') == '1' or os.path.exists('/tmp/wittypi_oneshot')
-
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='InkyPi Display Server')
 parser.add_argument('--dev', action='store_true', help='Run in development mode')
@@ -97,8 +92,6 @@ register_heif_opener()
 
 if __name__ == '__main__':
 
-    is_oneshot_mode = _is_oneshot_mode()
-
     # start the background refresh task
     refresh_task.start()
 
@@ -139,9 +132,8 @@ if __name__ == '__main__':
     if os.path.exists(bypass_file):
         logger.info("Bypass file '%s' found — skipping startup playlist.", bypass_file)
         # Do NOT remove the file — it persists across boots
-        if not is_oneshot_mode:
-            logger.info("Normal boot mode - removing any existing Witty Pi schedule")
-            remove_schedule_file()
+        logger.info("Removing any existing Witty Pi schedule")
+        remove_schedule_file()
     elif startup_playlist_config:
         try:
             playlist_name = startup_playlist_config.get("playlist_name")
@@ -156,26 +148,23 @@ if __name__ == '__main__':
             elif not getattr(playlist, "plugins", None):
                 logger.error("Startup playlist '%s' has no plugins", playlist_name)
             else:
-                if is_oneshot_mode:
-                    if playlist.wittypi_enabled:
-                        logger.info("Detected oneshot/battery mode - generating Witty Pi schedule for '%s'", playlist.name)
-                        try:
-                            generator = WittyPiScheduleGenerator(
-                                start_time_str=playlist.wittypi_start_time,
-                                end_time_str=playlist.wittypi_end_time,
-                                cycle_minutes=playlist.wittypi_cycle_minutes,
-                                timezone_str=playlist.wittypi_timezone
-                            )
-                            if generator.write_schedule_file():
-                                logger.info("Witty Pi schedule generated successfully")
-                            else:
-                                logger.error("Failed to generate Witty Pi schedule")
-                        except Exception as e:
-                            logger.error(f"Error generating Witty Pi schedule: {e}")
-                    else:
-                        logger.info("Witty Pi is disabled for playlist '%s'", playlist.name)
+                if playlist.wittypi_enabled:
+                    logger.info("Generating Witty Pi schedule for mounted playlist '%s'", playlist.name)
+                    try:
+                        generator = WittyPiScheduleGenerator(
+                            start_time_str=playlist.wittypi_start_time,
+                            end_time_str=playlist.wittypi_end_time,
+                            cycle_minutes=playlist.wittypi_cycle_minutes,
+                            timezone_str=playlist.wittypi_timezone
+                        )
+                        if generator.write_schedule_file():
+                            logger.info("Witty Pi schedule generated successfully")
+                        else:
+                            logger.error("Failed to generate Witty Pi schedule")
+                    except Exception as e:
+                        logger.error(f"Error generating Witty Pi schedule: {e}")
                 else:
-                    logger.info("Normal boot mode - removing any existing Witty Pi schedule")
+                    logger.info("Witty Pi is disabled for playlist '%s'", playlist.name)
                     remove_schedule_file()
 
                 logger.info("Running startup playlist once: %s", playlist_name)
@@ -212,10 +201,9 @@ if __name__ == '__main__':
         except Exception:
             logger.exception("Startup playlist one-shot failed")
     else:
-        # No startup playlist configured; ensure normal mode cleans up any leftover schedule
-        if not is_oneshot_mode:
-            logger.info("Normal boot mode - removing any existing Witty Pi schedule")
-            remove_schedule_file()
+        # No startup playlist configured; clean up any leftover schedule
+        logger.info("No startup playlist configured, removing any existing Witty Pi schedule")
+        remove_schedule_file()
     # --- END STARTUP PLAYLIST ONE-SHOT RUN ---
 
     # display default inkypi image on startup
