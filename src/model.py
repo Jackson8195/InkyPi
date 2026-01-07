@@ -119,22 +119,38 @@ class PlaylistManager:
             logger.warning(f"Playlist '{playlist_name}' not found.")
         return False
 
-    def add_playlist(self, name, start_time=None, end_time=None):
+    def add_playlist(self, name, start_time=None, end_time=None, wittypi_enabled=False, 
+                     wittypi_start_time=None, wittypi_end_time=None, wittypi_cycle_minutes=60, 
+                     wittypi_timezone="UTC"):
         """Creates and adds a new playlist with the given start and end times."""
         if not start_time:
             start_time = PlaylistManager.DEFAULT_PLAYLIST_START
         if not end_time:
             end_time = PlaylistManager.DEFAULT_PLAYLIST_END
-        self.playlists.append(Playlist(name, start_time, end_time))
+        self.playlists.append(Playlist(name, start_time, end_time, None, None, 
+                                      wittypi_enabled, wittypi_start_time, wittypi_end_time, 
+                                      wittypi_cycle_minutes, wittypi_timezone))
         return True
 
-    def update_playlist(self, old_name, new_name, start_time, end_time):
-        """Updates an existing playlist's name, start time, and end time."""
+    def update_playlist(self, old_name, new_name, start_time, end_time, wittypi_enabled=None, 
+                       wittypi_start_time=None, wittypi_end_time=None, wittypi_cycle_minutes=None, 
+                       wittypi_timezone=None):
+        """Updates an existing playlist's name, start time, end time, and Witty Pi settings."""
         playlist = self.get_playlist(old_name)
         if playlist:
             playlist.name = new_name
             playlist.start_time = start_time
             playlist.end_time = end_time
+            if wittypi_enabled is not None:
+                playlist.wittypi_enabled = wittypi_enabled
+            if wittypi_start_time is not None:
+                playlist.wittypi_start_time = wittypi_start_time
+            if wittypi_end_time is not None:
+                playlist.wittypi_end_time = wittypi_end_time
+            if wittypi_cycle_minutes is not None:
+                playlist.wittypi_cycle_minutes = wittypi_cycle_minutes
+            if wittypi_timezone is not None:
+                playlist.wittypi_timezone = wittypi_timezone
             return True
         logger.warning(f"Playlist '{old_name}' not found.")
         return False
@@ -173,14 +189,26 @@ class Playlist:
         end_time (str): Playlist end time in 'HH:MM'.
         plugins (list): A list of PluginInstance objects within the playlist.
         current_plugin_index (int): Index of the currently active plugin in the playlist.
+        wittypi_enabled (bool): Whether Witty Pi scheduling is enabled for this playlist.
+        wittypi_start_time (str): Witty Pi power on time in 'HH:MM'.
+        wittypi_end_time (str): Witty Pi power off time in 'HH:MM'.
+        wittypi_cycle_minutes (int): Power cycle interval in minutes.
+        wittypi_timezone (str): Timezone for Witty Pi scheduling.
     """
 
-    def __init__(self, name, start_time, end_time, plugins=None, current_plugin_index=None):
+    def __init__(self, name, start_time, end_time, plugins=None, current_plugin_index=None, 
+                 wittypi_enabled=False, wittypi_start_time=None, wittypi_end_time=None, 
+                 wittypi_cycle_minutes=60, wittypi_timezone="UTC"):
         self.name = name
         self.start_time = start_time
         self.end_time = end_time
         self.plugins = [PluginInstance.from_dict(p) for p in (plugins or [])]
         self.current_plugin_index = current_plugin_index
+        self.wittypi_enabled = wittypi_enabled
+        self.wittypi_start_time = wittypi_start_time or start_time
+        self.wittypi_end_time = wittypi_end_time or end_time
+        self.wittypi_cycle_minutes = wittypi_cycle_minutes
+        self.wittypi_timezone = wittypi_timezone
 
     def is_active(self, current_time):
         """Check if the playlist is active at the given time."""
@@ -257,7 +285,12 @@ class Playlist:
             "start_time": self.start_time,
             "end_time": self.end_time,
             "plugins": [p.to_dict() for p in self.plugins],
-            "current_plugin_index": self.current_plugin_index
+            "current_plugin_index": self.current_plugin_index,
+            "wittypi_enabled": self.wittypi_enabled,
+            "wittypi_start_time": self.wittypi_start_time,
+            "wittypi_end_time": self.wittypi_end_time,
+            "wittypi_cycle_minutes": self.wittypi_cycle_minutes,
+            "wittypi_timezone": self.wittypi_timezone
         }
 
     @classmethod
@@ -267,7 +300,12 @@ class Playlist:
             start_time=data["start_time"],
             end_time=data["end_time"],
             plugins=data["plugins"],
-            current_plugin_index=data.get("current_plugin_index", None)
+            current_plugin_index=data.get("current_plugin_index", None),
+            wittypi_enabled=data.get("wittypi_enabled", False),
+            wittypi_start_time=data.get("wittypi_start_time"),
+            wittypi_end_time=data.get("wittypi_end_time"),
+            wittypi_cycle_minutes=data.get("wittypi_cycle_minutes", 60),
+            wittypi_timezone=data.get("wittypi_timezone", "UTC")
         )
 
 class PluginInstance:

@@ -99,7 +99,21 @@ def create_playlist():
         if playlist:
             return jsonify({"error": f"Playlist with name '{playlist_name}' already exists"}), 400
 
-        result = playlist_manager.add_playlist(playlist_name, start_time, end_time)
+        # Extract Witty Pi settings
+        wittypi_enabled = data.get("wittypi_enabled", False)
+        wittypi_start_time = data.get("wittypi_start_time", start_time)
+        wittypi_end_time = data.get("wittypi_end_time", end_time)
+        wittypi_cycle_minutes = data.get("wittypi_cycle_minutes", 60)
+        wittypi_timezone = data.get("wittypi_timezone", "UTC")
+
+        result = playlist_manager.add_playlist(
+            playlist_name, start_time, end_time,
+            wittypi_enabled=wittypi_enabled,
+            wittypi_start_time=wittypi_start_time,
+            wittypi_end_time=wittypi_end_time,
+            wittypi_cycle_minutes=int(wittypi_cycle_minutes),
+            wittypi_timezone=wittypi_timezone
+        )
         if not result:
             return jsonify({"error": "Failed to create playlist"}), 500
 
@@ -130,9 +144,27 @@ def update_playlist(playlist_name):
     if not playlist:
         return jsonify({"error": f"Playlist '{playlist_name}' does not exist"}), 400
 
-    result = playlist_manager.update_playlist(playlist_name, new_name, start_time, end_time)
+    # Extract Witty Pi settings
+    wittypi_enabled = data.get("wittypi_enabled")
+    wittypi_start_time = data.get("wittypi_start_time")
+    wittypi_end_time = data.get("wittypi_end_time")
+    wittypi_cycle_minutes = data.get("wittypi_cycle_minutes")
+    wittypi_timezone = data.get("wittypi_timezone")
+
+    # Convert cycle minutes to int if present
+    if wittypi_cycle_minutes is not None:
+        wittypi_cycle_minutes = int(wittypi_cycle_minutes)
+
+    result = playlist_manager.update_playlist(
+        playlist_name, new_name, start_time, end_time,
+        wittypi_enabled=wittypi_enabled,
+        wittypi_start_time=wittypi_start_time,
+        wittypi_end_time=wittypi_end_time,
+        wittypi_cycle_minutes=wittypi_cycle_minutes,
+        wittypi_timezone=wittypi_timezone
+    )
     if not result:
-        return jsonify({"error": "Failed to delete playlist"}), 500
+        return jsonify({"error": "Failed to update playlist"}), 500
     device_config.write_config()
 
     return jsonify({"success": True, "message": f"Updated playlist '{playlist_name}'!"})

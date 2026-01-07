@@ -91,12 +91,18 @@
         }
 
         // Open modal for **editing** an existing playlist
-        function openEditModal(playlistName, startTime, endTime) {
+        function openEditModal(playlistName, startTime, endTime, wittypiEnabled = false, wittypiStartTime = "", wittypiEndTime = "", wittypiCycleMinutes = 60, wittypiTimezone = "UTC") {
             document.getElementById("modalTitle").textContent = "Update Playlist";
             document.getElementById("playlist_name").value = playlistName;
             document.getElementById("editingPlaylistName").value = playlistName;
             document.getElementById("start_time").value = startTime;
             document.getElementById("end_time").value = endTime;
+            document.getElementById("wittypi_enabled").checked = wittypiEnabled;
+            document.getElementById("wittypi_start_time").value = wittypiStartTime || startTime;
+            document.getElementById("wittypi_end_time").value = wittypiEndTime || endTime;
+            document.getElementById("wittypi_cycle_minutes").value = wittypiCycleMinutes;
+            document.getElementById("wittypi_timezone").value = wittypiTimezone;
+            updateWittyPiFieldsVisibility();
 
             document.getElementById("saveButton").setAttribute("onclick", "updatePlaylist()");
             document.getElementById("deleteButton").classList.remove("hidden"); // Show delete button
@@ -114,10 +120,25 @@
             modal.style.display = 'none';
         }
 
+        function updateWittyPiFieldsVisibility() {
+            const wittypiEnabled = document.getElementById("wittypi_enabled").checked;
+            const wittypiFieldsContainer = document.getElementById("wittypi_fields_container");
+            if (wittypiEnabled) {
+                wittypiFieldsContainer.classList.remove("hidden");
+            } else {
+                wittypiFieldsContainer.classList.add("hidden");
+            }
+        }
+
         async function createPlaylist() {
             let playlistName = document.getElementById("playlist_name").value.trim();
             let startTime = document.getElementById("start_time").value;
             let endTime = document.getElementById("end_time").value;
+            let wittypiEnabled = document.getElementById("wittypi_enabled").checked;
+            let wittypiStartTime = document.getElementById("wittypi_start_time").value;
+            let wittypiEndTime = document.getElementById("wittypi_end_time").value;
+            let wittypiCycleMinutes = parseInt(document.getElementById("wittypi_cycle_minutes").value);
+            let wittypiTimezone = document.getElementById("wittypi_timezone").value;
 
             try {
                 const response = await fetch("{{ url_for('playlist.create_playlist') }}", {
@@ -125,7 +146,16 @@
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ playlist_name: playlistName, start_time: startTime, end_time: endTime })
+                    body: JSON.stringify({ 
+                        playlist_name: playlistName, 
+                        start_time: startTime, 
+                        end_time: endTime,
+                        wittypi_enabled: wittypiEnabled,
+                        wittypi_start_time: wittypiStartTime,
+                        wittypi_end_time: wittypiEndTime,
+                        wittypi_cycle_minutes: wittypiCycleMinutes,
+                        wittypi_timezone: wittypiTimezone
+                    })
                 });
 
                 const result = await response.json();
@@ -147,6 +177,11 @@
             let newName = document.getElementById("playlist_name").value;
             let startTime = document.getElementById("start_time").value;
             let endTime = document.getElementById("end_time").value;
+            let wittypiEnabled = document.getElementById("wittypi_enabled").checked;
+            let wittypiStartTime = document.getElementById("wittypi_start_time").value;
+            let wittypiEndTime = document.getElementById("wittypi_end_time").value;
+            let wittypiCycleMinutes = parseInt(document.getElementById("wittypi_cycle_minutes").value);
+            let wittypiTimezone = document.getElementById("wittypi_timezone").value;
 
             try {
                 const response = await fetch("{{ url_for('playlist.update_playlist', playlist_name='') }}" + oldName, {
@@ -154,7 +189,16 @@
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ new_name: newName, start_time: startTime, end_time: endTime })
+                    body: JSON.stringify({ 
+                        new_name: newName, 
+                        start_time: startTime, 
+                        end_time: endTime,
+                        wittypi_enabled: wittypiEnabled,
+                        wittypi_start_time: wittypiStartTime,
+                        wittypi_end_time: wittypiEndTime,
+                        wittypi_cycle_minutes: wittypiCycleMinutes,
+                        wittypi_timezone: wittypiTimezone
+                    })
                 });
 
                 const result = await response.json();
@@ -195,19 +239,27 @@
         function populateTimeOptions() {
             let startSelect = document.getElementById("start_time");
             let endSelect = document.getElementById("end_time");
+            let wittypiStartSelect = document.getElementById("wittypi_start_time");
+            let wittypiEndSelect = document.getElementById("wittypi_end_time");
 
             startSelect.innerHTML = "";
             endSelect.innerHTML = "";
+            wittypiStartSelect.innerHTML = "";
+            wittypiEndSelect.innerHTML = "";
 
             for (let hour = 0; hour < 24; hour++) { // 24-hour format (0-23)
                 for (let minutes of [0, 15, 30, 45]) {
                     let time = hour.toString().padStart(2, '0') + ":" + minutes.toString().padStart(2, '0');
                     startSelect.innerHTML += `<option value="${time}">${time}</option>`;
                     endSelect.innerHTML += `<option value="${time}">${time}</option>`;
+                    wittypiStartSelect.innerHTML += `<option value="${time}">${time}</option>`;
+                    wittypiEndSelect.innerHTML += `<option value="${time}">${time}</option>`;
                 }
             }
             startSelect.innerHTML += `<option value="24:00">24:00</option>`;
             endSelect.innerHTML += `<option value="24:00">24:00</option>`;
+            wittypiStartSelect.innerHTML += `<option value="24:00">24:00</option>`;
+            wittypiEndSelect.innerHTML += `<option value="24:00">24:00</option>`;
         }
 
         document.addEventListener("DOMContentLoaded", populateTimeOptions);
@@ -244,7 +296,7 @@
             <div class="playlist-item {% if playlist.name == playlist_config.active_playlist %}active{% endif %}">
                     <div class="playlist-header">
                         <span class="playlist-title">{{ playlist.name }}</span>
-                        <button class="edit-button" onclick="openEditModal('{{ playlist.name }}', '{{ playlist.start_time }}','{{ playlist.end_time }}')"><img src="{{ url_for('static', filename='icons/settings.png') }}" alt="edit playlist" class="action-icon"></button>
+                        <button class="edit-button" onclick="openEditModal('{{ playlist.name }}', '{{ playlist.start_time }}','{{ playlist.end_time }}', {{ playlist.wittypi_enabled|lower }}, '{{ playlist.wittypi_start_time }}', '{{ playlist.wittypi_end_time }}', {{ playlist.wittypi_cycle_minutes }}, '{{ playlist.wittypi_timezone }}')"><img src="{{ url_for('static', filename='icons/settings.png') }}" alt="edit playlist" class="action-icon"></button>
                     </div>
                     <!-- Plugin List -->
                     <div class="plugin-list">
@@ -305,6 +357,42 @@
                     <select id="start_time" name="start_time" class="form-input"></select>
                     <span> - </span>
                     <select id="end_time" name="end_time" class="form-input"></select>
+                </div>
+                
+                <!-- Witty Pi Settings -->
+                <div class="separator"></div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="wittypi_enabled" name="wittypi_enabled" onchange="updateWittyPiFieldsVisibility()">
+                        <span>Enable Witty Pi Power Cycling</span>
+                    </label>
+                </div>
+                
+                <div id="wittypi_fields_container" class="hidden">
+                    <div class="form-group">
+                        <label for="wittypi_start_time" class="form-label">Power On from </label>
+                        <select id="wittypi_start_time" name="wittypi_start_time" class="form-input"></select>
+                        <span> - </span>
+                        <select id="wittypi_end_time" name="wittypi_end_time" class="form-input"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="wittypi_cycle_minutes" class="form-label">Cycle Interval (minutes):</label>
+                        <input type="number" id="wittypi_cycle_minutes" name="wittypi_cycle_minutes" min="15" max="1440" value="60" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="wittypi_timezone" class="form-label">Timezone:</label>
+                        <select id="wittypi_timezone" name="wittypi_timezone" class="form-input">
+                            <option value="UTC">UTC</option>
+                            <option value="US/Eastern">US/Eastern</option>
+                            <option value="US/Central">US/Central</option>
+                            <option value="US/Mountain">US/Mountain</option>
+                            <option value="US/Pacific">US/Pacific</option>
+                            <option value="Europe/London">Europe/London</option>
+                            <option value="Europe/Paris">Europe/Paris</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo</option>
+                            <option value="Australia/Sydney">Australia/Sydney</option>
+                        </select>
+                    </div>
                 </div>
             </form>
             <div class="buttons-container">
