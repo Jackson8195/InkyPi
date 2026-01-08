@@ -158,7 +158,7 @@ if __name__ == '__main__':
                             timezone_str=playlist.wittypi_timezone
                         )
                         if generator.write_schedule_file():
-                            logger.info("Witty Pi schedule generated successfully")
+                            logger.info("Witty Pi schedule generated and activated successfully")
                         else:
                             logger.error("Failed to generate Witty Pi schedule")
                     except Exception as e:

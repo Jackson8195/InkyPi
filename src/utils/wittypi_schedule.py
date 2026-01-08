@@ -162,7 +162,7 @@ class WittyPiScheduleGenerator:
     
     def write_schedule_file(self, current_dt=None, file_path=WITTYPI_SCHEDULE_PATH):
         """
-        Generate and write the schedule file to disk.
+        Generate and write the schedule file to disk, then activate it.
         
         Args:
             current_dt (datetime): Current datetime (defaults to now in configured timezone)
@@ -171,6 +171,8 @@ class WittyPiScheduleGenerator:
         Returns:
             bool: True if successful, False otherwise
         """
+        import subprocess
+        
         try:
             content = self.generate_schedule_content(current_dt)
             if content is None:
@@ -184,6 +186,27 @@ class WittyPiScheduleGenerator:
                 f.write(content)
             
             logger.info(f"Wrote Witty Pi schedule to {file_path}")
+            
+            # Activate the schedule by running Witty Pi's runScript.sh
+            try:
+                result = subprocess.run(
+                    ["sudo", "/home/pi/wittypi/runScript.sh"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                if result.returncode == 0:
+                    logger.info("Witty Pi schedule activated successfully")
+                else:
+                    logger.error(f"Failed to activate Witty Pi schedule: {result.stderr}")
+                    return False
+            except subprocess.TimeoutExpired:
+                logger.error("Witty Pi runScript.sh timed out")
+                return False
+            except Exception as e:
+                logger.error(f"Error running Witty Pi activation script: {e}")
+                return False
+            
             return True
         except Exception as e:
             logger.error(f"Failed to write Witty Pi schedule: {e}")
