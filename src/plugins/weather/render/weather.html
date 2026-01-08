@@ -7,6 +7,7 @@
   {% if plugin_settings.displayRefreshTime == "true" %}
   <div class="meta-block">
     <div class="last-refresh">Last refresh: {{ last_refresh_time }}</div>
+    <div class="last-refresh">Next bootup: {% if next_bootup_time %}{{ next_bootup_time }}{% else %}Not set, running normally{% endif %}</div>
     <div class="system-info">
       <div class="battery-meter">
         <div class="battery-bar">

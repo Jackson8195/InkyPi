@@ -93,21 +93,22 @@ class WittyPiScheduleGenerator:
             next_cycle_start_minutes = (cycles_completed + 1) * self.cycle_minutes
             cycle_start = today_start + timedelta(minutes=next_cycle_start_minutes)
             
-            # If calculated start goes past end time, use next day
+            # If calculated start goes past end time, start at beginning tomorrow
             if cycle_start >= today_end:
-                cycle_start = today_start + timedelta(days=1)
-        
-        # Ensure cycle_start is within window (don't start before window opens)
-        if cycle_start.time() < today_start.time():
-            cycle_start = cycle_start.replace(hour=start_hour, minute=start_min)
+                tomorrow_start = today_start + timedelta(days=1)
+                cycle_start = tomorrow_start
         
         # Calculate cycle end time (when system powers off)
         cycle_end = cycle_start + timedelta(minutes=self.cycle_minutes)
         
         # If cycle_end extends past daily end time, cap it at daily end time
-        daily_end_time = cycle_start.replace(hour=end_hour, minute=end_min)
-        if cycle_end > daily_end_time:
-            cycle_end = daily_end_time
+        # (for cycles that span across the end of the window)
+        end_boundary = cycle_start.replace(hour=end_hour, minute=end_min, second=0, microsecond=0)
+        # Handle wrapping windows
+        if end_boundary <= cycle_start:
+            end_boundary += timedelta(days=1)
+        if cycle_end > end_boundary:
+            cycle_end = end_boundary
         
         return cycle_start, cycle_end
     
@@ -207,3 +208,34 @@ def remove_schedule_file(file_path=WITTYPI_SCHEDULE_PATH):
     except Exception as e:
         logger.error(f"Failed to remove Witty Pi schedule file: {e}")
         return False
+
+
+def get_next_bootup_time(file_path=WITTYPI_SCHEDULE_PATH):
+    """
+    Read the next bootup time from the Witty Pi schedule file.
+    
+    Args:
+        file_path (str): Path to the schedule file
+        
+    Returns:
+        datetime: The next bootup datetime, or None if not available
+    """
+    try:
+        if not os.path.exists(file_path):
+            return None
+        
+        with open(file_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('BEGIN'):
+                    # Format: BEGIN   2026-01-07 17:00:00
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        date_str = parts[1]
+                        time_str = parts[2]
+                        bootup_dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M:%S")
+                        return bootup_dt
+        return None
+    except Exception as e:
+        logger.error(f"Failed to read next bootup time: {e}")
+        return None

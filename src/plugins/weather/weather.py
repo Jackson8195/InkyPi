@@ -1,5 +1,6 @@
 from plugins.base_plugin.base_plugin import BasePlugin
 from utils.uptime_tracker import get_total_runtime, get_battery_uptime, read_witty_vin, vin_to_percent
+from utils.wittypi_schedule import get_next_bootup_time
 from PIL import Image
 import os
 import requests
@@ -137,6 +138,16 @@ class Weather(BasePlugin):
         vin = read_witty_vin()
         template_params["battery_voltage"] = vin if vin else "–"
         template_params["battery_percent"] = vin_to_percent(vin) if vin else 0
+
+        # Add next bootup time from Witty Pi schedule
+        next_boot = get_next_bootup_time()
+        if next_boot:
+            if time_format == "24h":
+                template_params["next_bootup_time"] = next_boot.strftime("%H:%M")
+            else:
+                template_params["next_bootup_time"] = next_boot.strftime("%I:%M %p")
+        else:
+            template_params["next_bootup_time"] = None
 
         image = self.render_image(dimensions, "weather.html", "weather.css", template_params)
 
