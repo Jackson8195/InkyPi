@@ -17,6 +17,10 @@
     <script src="{{ url_for('static', filename='scripts/dark_mode.js') }}"></script>
     <script src="{{ url_for('static', filename='scripts/response_modal.js') }}"></script>
     <script>
+        // Expose mount selector config to JS (bit->playlist mapping)
+        const MOUNT_SELECTOR_CONFIG = {{ mount_selector_config | tojson | safe }} || {};
+        const STATE_TO_PLAYLIST = (MOUNT_SELECTOR_CONFIG && MOUNT_SELECTOR_CONFIG.state_to_playlist) ? MOUNT_SELECTOR_CONFIG.state_to_playlist : {};
+
         async function deletePluginInstance(playlistName, pluginId, pluginInstance) {
             try {
                 const response = await fetch("{{ url_for('plugin.delete_plugin_instance') }}", {
@@ -104,6 +108,10 @@
             document.getElementById("wittypi_timezone").value = wittypiTimezone;
             updateWittyPiFieldsVisibility();
 
+            // Prefill mount selector from mapping
+            const bits = getBitsForPlaylist(playlistName);
+            setMountSelector(bits);
+
             document.getElementById("saveButton").setAttribute("onclick", "updatePlaylist()");
             document.getElementById("deleteButton").classList.remove("hidden"); // Show delete button
 
@@ -141,6 +149,7 @@
             let wittypiTimezone = document.getElementById("wittypi_timezone").value;
 
             try {
+                const mountBits = getMountBits();
                 const response = await fetch("{{ url_for('playlist.create_playlist') }}", {
                     method: "POST",
                     headers: {
@@ -154,7 +163,8 @@
                         wittypi_start_time: wittypiStartTime,
                         wittypi_end_time: wittypiEndTime,
                         wittypi_cycle_minutes: wittypiCycleMinutes,
-                        wittypi_timezone: wittypiTimezone
+                        wittypi_timezone: wittypiTimezone,
+                        mount_bits: mountBits
                     })
                 });
 
@@ -184,6 +194,7 @@
             let wittypiTimezone = document.getElementById("wittypi_timezone").value;
 
             try {
+                const mountBits = getMountBits();
                 const response = await fetch("{{ url_for('playlist.update_playlist', playlist_name='') }}" + oldName, {
                     method: "PUT",
                     headers: {
@@ -197,7 +208,8 @@
                         wittypi_start_time: wittypiStartTime,
                         wittypi_end_time: wittypiEndTime,
                         wittypi_cycle_minutes: wittypiCycleMinutes,
-                        wittypi_timezone: wittypiTimezone
+                        wittypi_timezone: wittypiTimezone,
+                        mount_bits: mountBits
                     })
                 });
 
@@ -394,6 +406,27 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- Mount Selector: 3 reed switches mapped to MCP23017 GPIO A0, A1, A2 (left→right) -->
+                <div class="separator"></div>
+                <div class="form-group">
+                    <label class="form-label">Assign to Mount (reed switches):</label>
+                    <div class="radio-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="mount_a0" name="mount_a0">
+                            <span>GPIO A0 — magnet present (closed=0)</span>
+                        </label>
+                        <label class="form-label">
+                            <input type="checkbox" id="mount_a1" name="mount_a1">
+                            <span>GPIO A1 — magnet present (closed=0)</span>
+                        </label>
+                        <label class="form-label">
+                            <input type="checkbox" id="mount_a2" name="mount_a2">
+                            <span>GPIO A2 — magnet present (closed=0)</span>
+                        </label>
+                        <div class="form-help">Left→right order is A0, A1, A2. Checked = magnet present (reads 0); unchecked = no magnet (reads 1). Saves bits in A0A1A2 order.</div>
+                    </div>
+                </div>
             </form>
             <div class="buttons-container">
                 <button type="button" class="action-button" id="saveButton">Save</button>
@@ -404,5 +437,31 @@
 
     <!-- Success/Error Modal -->
     {% include 'response_modal.html' %}
+
+    <script>
+        // Helpers to map bits<->UI and lookup existing mapping
+        function getBitsForPlaylist(name) {
+            // STATE_TO_PLAYLIST maps bits->playlist; invert lookup
+            for (const [bits, pl] of Object.entries(STATE_TO_PLAYLIST)) {
+                if (pl === name) return bits;
+            }
+            return "";
+        }
+
+        function setMountSelector(bits) {
+            // bits like "010"; index 0=A0,1=A1,2=A2; '0' => checked
+            const b = (bits && bits.length === 3) ? bits : "111"; // default all open
+            document.getElementById("mount_a0").checked = (b[0] === "0");
+            document.getElementById("mount_a1").checked = (b[1] === "0");
+            document.getElementById("mount_a2").checked = (b[2] === "0");
+        }
+
+        function getMountBits() {
+            const a0 = document.getElementById("mount_a0").checked ? "0" : "1";
+            const a1 = document.getElementById("mount_a1").checked ? "0" : "1";
+            const a2 = document.getElementById("mount_a2").checked ? "0" : "1";
+            return a0 + a1 + a2;
+        }
+    </script>
 </body>
 </html>
