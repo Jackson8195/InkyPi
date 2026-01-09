@@ -23,12 +23,9 @@ import logging
 import threading
 import argparse
 import subprocess
-from datetime import datetime
 from utils.app_utils import generate_startup_image
-from utils.mount_detection import MountSelector, MCP23017NotAvailable
-from utils.uptime_tracker import append_runtime, get_total_runtime
-from utils.wittypi_schedule import WittyPiScheduleGenerator, remove_schedule_file
 from flask import Flask, request
+from startup_manager import StartupManager
 from werkzeug.serving import is_running_from_reloader
 from config import Config
 from display.display_manager import DisplayManager
@@ -95,116 +92,9 @@ if __name__ == '__main__':
     # start the background refresh task
     refresh_task.start()
 
-    # --- STARTUP PLAYLIST ONE-SHOT RUN (with bypass file) ---
-    # Persistent bypass file: create ~/.inkypi_skip_startup to skip startup playlist
-    bypass_file = os.path.expanduser("~/.inkypi_skip_startup")
-
-    # If bypass is present, skip mount detection entirely
-    if not os.path.exists(bypass_file):
-        mount_selector_config = device_config.get_config("mount_startup_playlists", default=None)
-        if mount_selector_config and mount_selector_config.get("enabled"):
-            # Mount detection replaces startup_playlist config entirely
-            startup_playlist_config = None
-            try:
-                selector = MountSelector.from_config(mount_selector_config, logger=logger)
-                detection = selector.detect()
-
-                if detection.all_open:
-                    startup_playlist_config = None
-                elif detection.playlist_name:
-                    startup_playlist_config = {
-                        "playlist_name": detection.playlist_name,
-                        "wait_seconds": int(mount_selector_config.get("wait_seconds", 120)),
-                        "shutdown_after_refresh": bool(mount_selector_config.get("shutdown_after_refresh", False)),
-                    }
-            except MCP23017NotAvailable as exc:
-                logger.warning("Mount selector disabled: %s", exc)
-                startup_playlist_config = None
-            except Exception:
-                logger.exception("Mount selector failed; no startup playlist will run")
-                startup_playlist_config = None
-        else:
-            # Fall back to static startup_playlist config if mount detection not enabled
-            startup_playlist_config = device_config.get_config("startup_playlist", default=None)
-    else:
-        startup_playlist_config = None
-
-    if os.path.exists(bypass_file):
-        logger.info("Bypass file '%s' found — skipping startup playlist.", bypass_file)
-        # Do NOT remove the file — it persists across boots
-        logger.info("Removing any existing Witty Pi schedule")
-        remove_schedule_file()
-    elif startup_playlist_config:
-        try:
-            playlist_name = startup_playlist_config.get("playlist_name")
-            per_plugin_timeout = int(startup_playlist_config.get("wait_seconds", 120))
-            shutdown_after = bool(startup_playlist_config.get("shutdown_after_refresh", False))
-
-            playlist_manager = device_config.get_playlist_manager()
-            playlist = playlist_manager.get_playlist(playlist_name)
-
-            if not playlist:
-                logger.error("Startup playlist '%s' not found", playlist_name)
-            elif not getattr(playlist, "plugins", None):
-                logger.error("Startup playlist '%s' has no plugins", playlist_name)
-            else:
-                if playlist.wittypi_enabled:
-                    logger.info("Generating Witty Pi schedule for mounted playlist '%s'", playlist.name)
-                    try:
-                        generator = WittyPiScheduleGenerator(
-                            start_time_str=playlist.wittypi_start_time,
-                            end_time_str=playlist.wittypi_end_time,
-                            cycle_minutes=playlist.wittypi_cycle_minutes,
-                            timezone_str=playlist.wittypi_timezone
-                        )
-                        if generator.write_schedule_file():
-                            logger.info("Witty Pi schedule generated and activated successfully")
-                        else:
-                            logger.error("Failed to generate Witty Pi schedule")
-                    except Exception as e:
-                        logger.error(f"Error generating Witty Pi schedule: {e}")
-                else:
-                    logger.info("Witty Pi is disabled for playlist '%s'", playlist.name)
-                    remove_schedule_file()
-
-                logger.info("Running startup playlist once: %s", playlist_name)
-
-                for entry in playlist.plugins:
-                    pr = PlaylistRefresh(playlist, entry, force=True)
-
-                    done = threading.Event()
-                    try:
-                        refresh_task.manual_update(pr, completion_event=done)
-                        done.wait(timeout=per_plugin_timeout)
-                    except TypeError:
-                        refresh_task.manual_update(pr)
-                        time.sleep(min(10, per_plugin_timeout))
-
-                if shutdown_after:
-                    logger.info("Startup one-shot finished; preparing to shut down.")
-
-                    # Record uptime directly before shutdown
-                    logger.info("Recording uptime before shutdown")
-                    try:
-                        total_seconds = append_runtime()
-                        logger.info(f"Uptime recorded: {get_total_runtime()} ({total_seconds}s)")
-                    except Exception as e:
-                        logger.warning(f"Failed to record uptime: {e}")
-
-                    logger.info("Executing shutdown command")
-                    try:
-                        subprocess.run(["sudo", "shutdown", "-h", "now"], check=True)
-                    except subprocess.CalledProcessError as e:
-                        logger.error(f"Shutdown command failed: {e}")
-                    except Exception as e:
-                        logger.error(f"Unexpected error during shutdown: {e}")
-        except Exception:
-            logger.exception("Startup playlist one-shot failed")
-    else:
-        # No startup playlist configured; clean up any leftover schedule
-        logger.info("No startup playlist configured, removing any existing Witty Pi schedule")
-        remove_schedule_file()
-    # --- END STARTUP PLAYLIST ONE-SHOT RUN ---
+    # Execute startup playlist logic (mount detection, playlist run, Witty Pi, shutdown)
+    startup_manager = StartupManager(device_config, refresh_task, logger)
+    startup_manager.execute()
 
     # display default inkypi image on startup
     if device_config.get_config("startup") is True:
