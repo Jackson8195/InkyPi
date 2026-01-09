@@ -364,11 +364,11 @@
                     <label for="playlist_name" class="form-label">Playlist Name:</label>
                     <input type="text" id="playlist_name" name="playlist_name" placeholder="Type something..." required class="form-input">
                 </div>
-                <div class="form-group">
+                <div class="form-group nowrap">
                     <label for="start_time" class="form-label">Display from </label>
-                    <select id="start_time" name="start_time" class="form-input"></select>
+                    <select id="start_time" name="start_time" class="form-input time-select"></select>
                     <span> - </span>
-                    <select id="end_time" name="end_time" class="form-input"></select>
+                    <select id="end_time" name="end_time" class="form-input time-select"></select>
                 </div>
                 
                 <!-- Witty Pi Settings -->
@@ -381,11 +381,11 @@
                 </div>
                 
                 <div id="wittypi_fields_container" class="hidden">
-                    <div class="form-group">
+                    <div class="form-group nowrap">
                         <label for="wittypi_start_time" class="form-label">Power On from </label>
-                        <select id="wittypi_start_time" name="wittypi_start_time" class="form-input"></select>
+                        <select id="wittypi_start_time" name="wittypi_start_time" class="form-input time-select"></select>
                         <span> - </span>
-                        <select id="wittypi_end_time" name="wittypi_end_time" class="form-input"></select>
+                        <select id="wittypi_end_time" name="wittypi_end_time" class="form-input time-select"></select>
                     </div>
                     <div class="form-group">
                         <label for="wittypi_cycle_minutes" class="form-label">Cycle Interval (minutes):</label>
