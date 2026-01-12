@@ -10,7 +10,7 @@ import subprocess
 from refresh_task import PlaylistRefresh
 from utils.mount_detection import MountSelector, MCP23017NotAvailable
 from utils.uptime_tracker import append_runtime, get_total_runtime
-from utils.wittypi_schedule import WittyPiScheduleGenerator, remove_schedule_file
+from utils.wittypi_schedule import generate_schedule_for_playlist, remove_schedule_file
 
 
 class StartupManager:
@@ -29,6 +29,7 @@ class StartupManager:
         self.refresh_task = refresh_task
         self.logger = logger or logging.getLogger(__name__)
         self.bypass_file = os.path.expanduser("~/.inkypi_skip_startup")
+        self.schedule_metadata_file = os.path.expanduser("~/.inkypi_schedule_playlist")
     
     def should_skip_startup(self):
         """Check if startup should be skipped via bypass file."""
@@ -53,6 +54,76 @@ class StartupManager:
         else:
             return self.device_config.get_config("startup_playlist", default=None)
     
+    def _get_last_scheduled_playlist(self):
+        """Read which playlist the current schedule was generated for."""
+        try:
+            if os.path.exists(self.schedule_metadata_file):
+                with open(self.schedule_metadata_file, 'r') as f:
+                    return f.read().strip()
+        except Exception as e:
+            self.logger.debug(f"Failed to read schedule metadata: {e}")
+        return None
+    
+    def _save_scheduled_playlist(self, playlist_name):
+        """Record which playlist the schedule was generated for."""
+        try:
+            with open(self.schedule_metadata_file, 'w') as f:
+                f.write(playlist_name)
+        except Exception as e:
+            self.logger.warning(f"Failed to save schedule metadata: {e}")
+    
+    def _clear_scheduled_playlist_metadata(self):
+        """Clear the schedule metadata when removing the schedule."""
+        try:
+            if os.path.exists(self.schedule_metadata_file):
+                os.remove(self.schedule_metadata_file)
+        except Exception as e:
+            self.logger.debug(f"Failed to clear schedule metadata: {e}")
+    
+    def _check_and_update_wittypi_schedule(self, current_playlist):
+        """
+        Check if Witty Pi schedule needs to be regenerated or removed.
+        
+        Args:
+            current_playlist: The playlist that is currently active (or None if no mount)
+        """
+        last_scheduled = self._get_last_scheduled_playlist()
+        current_playlist_name = current_playlist.name if current_playlist else None
+        
+        # If no current playlist, remove schedule and metadata
+        if not current_playlist:
+            if last_scheduled:
+                self.logger.info("No playlist mounted; removing Witty Pi schedule")
+                remove_schedule_file()
+                self._clear_scheduled_playlist_metadata()
+            return
+        
+        # If Witty Pi is disabled, remove schedule if it exists
+        if not current_playlist.wittypi_enabled:
+            if last_scheduled:
+                self.logger.info("Witty Pi disabled for current playlist; removing schedule")
+                remove_schedule_file()
+                self._clear_scheduled_playlist_metadata()
+            return
+        
+        # Witty Pi is enabled for current playlist
+        # Regenerate if: mount changed OR schedule doesn't exist
+        if last_scheduled != current_playlist_name:
+            self.logger.info(
+                f"Witty Pi schedule needs update (was: {last_scheduled}, now: {current_playlist_name})"
+            )
+            generate_schedule_for_playlist(
+                wittypi_enabled=True,
+                wittypi_start_time=current_playlist.wittypi_start_time,
+                wittypi_end_time=current_playlist.wittypi_end_time,
+                wittypi_cycle_minutes=current_playlist.wittypi_cycle_minutes,
+                wittypi_timezone=current_playlist.wittypi_timezone
+            )
+            self._save_scheduled_playlist(current_playlist_name)
+        else:
+            self.logger.info(f"Witty Pi schedule still valid for {current_playlist_name}")
+    
+
     def _detect_via_mount(self, mount_selector_config):
         """Detect startup playlist via reed switch mount selector."""
         try:
@@ -75,26 +146,12 @@ class StartupManager:
         return None
     
     def setup_wittypi_schedule(self, playlist):
-        """Generate and write Witty Pi schedule if enabled for playlist."""
-        if not playlist.wittypi_enabled:
-            self.logger.info("Witty Pi is disabled for playlist '%s'", playlist.name)
-            remove_schedule_file()
-            return
+        """
+        Check and update Witty Pi schedule if needed based on current mount.
         
-        self.logger.info("Generating Witty Pi schedule for playlist '%s'", playlist.name)
-        try:
-            generator = WittyPiScheduleGenerator(
-                start_time_str=playlist.wittypi_start_time,
-                end_time_str=playlist.wittypi_end_time,
-                cycle_minutes=playlist.wittypi_cycle_minutes,
-                timezone_str=playlist.wittypi_timezone
-            )
-            if generator.write_schedule_file():
-                self.logger.info("Witty Pi schedule generated and activated successfully")
-            else:
-                self.logger.error("Failed to generate Witty Pi schedule")
-        except Exception as e:
-            self.logger.error(f"Error generating Witty Pi schedule: {e}")
+        Only regenerates if the mount changed or settings differ from last boot.
+        """
+        self._check_and_update_wittypi_schedule(playlist)
     
     def run_playlist(self, playlist, per_plugin_timeout):
         """Execute all plugins in a playlist."""
@@ -147,6 +204,7 @@ class StartupManager:
         if not startup_config:
             self.logger.info("No startup playlist configured")
             remove_schedule_file()
+            self._clear_scheduled_playlist_metadata()
             return
         
         try:

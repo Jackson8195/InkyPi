@@ -78,94 +78,130 @@ class WittyPiScheduleGenerator:
                 # After start time, end time is tomorrow
                 today_end += timedelta(days=1)
         
-        # Check if current time is within the window
-        if current_dt < today_start:
-            # Not yet in today's window, start at beginning
-            cycle_start = today_start
-        elif current_dt >= today_end:
-            # Past today's window, start at beginning tomorrow
-            tomorrow_start = today_start + timedelta(days=1)
-            cycle_start = tomorrow_start
-        else:
-            # Within window, calculate next cycle boundary
-            time_in_window = (current_dt - today_start).total_seconds() / 60
-            cycles_completed = int(time_in_window // self.cycle_minutes)
-            next_cycle_start_minutes = (cycles_completed + 1) * self.cycle_minutes
-            cycle_start = today_start + timedelta(minutes=next_cycle_start_minutes)
-            
-            # If calculated start goes past end time, start at beginning tomorrow
-            if cycle_start >= today_end:
-                tomorrow_start = today_start + timedelta(days=1)
-                cycle_start = tomorrow_start
-        
-        # Calculate cycle end time (when system powers off)
-        cycle_end = cycle_start + timedelta(minutes=self.cycle_minutes)
-        
-        # If cycle_end extends past daily end time, cap it at daily end time
-        # (for cycles that span across the end of the window)
-        end_boundary = cycle_start.replace(hour=end_hour, minute=end_min, second=0, microsecond=0)
-        # Handle wrapping windows
-        if end_boundary <= cycle_start:
-            end_boundary += timedelta(days=1)
-        if cycle_end > end_boundary:
-            cycle_end = end_boundary
-        
-        return cycle_start, cycle_end
+        return today_start, today_end
     
     def generate_schedule_content(self, current_dt=None):
         """
-        Generate the Witty Pi schedule file content.
+        Generate a 24-hour Witty Pi schedule that repeats daily.
         
-        Args:
-            current_dt (datetime): Current datetime (defaults to now in configured timezone)
-            
-        Returns:
-            str: The schedule file content as a string
+        Logic:
+        - BEGIN at the next cycle boundary within the configured window
+        - Emit ON 10 / OFF (cycle-10) while inside the window
+        - At window end, emit a single OFF spanning to the next day's window start
+        - Build exactly 24 hours of instructions; Witty Pi will repeat the loop
+        - END is set 100 years out (indefinite repeat)
         """
         if current_dt is None:
             current_dt = datetime.now(self.tz)
         else:
-            # Ensure timezone awareness
             if current_dt.tzinfo is None:
                 current_dt = self.tz.localize(current_dt)
             else:
                 current_dt = current_dt.astimezone(self.tz)
-        
-        # Get the next cycle
-        cycle_start, cycle_end = self._get_next_cycle_time(
-            current_dt, self.start_time_str, self.end_time_str
-        )
-        
-        if cycle_start is None or cycle_end is None:
-            logger.error("Failed to calculate cycle times")
-            return None
-        
-        # Format dates for Witty Pi (YYYY-MM-DD HH:MM:SS)
-        begin_str = cycle_start.strftime("%Y-%m-%d %H:%M:%S")
-        end_str = cycle_end.strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Calculate OFF duration in minutes
-        # This is how long the system stays off until next ON cycle
-        off_duration = self.cycle_minutes - 10  # 10 minutes reserved for ON/WAIT
-        
-        # Build schedule content
+
+        # Window helpers
+        start_hour, start_min = map(int, self.start_time_str.split(":"))
+        end_hour, end_min = map(int, self.end_time_str.split(":"))
+
+        def fmt_duration(minutes):
+            # Prefer hours when evenly divisible to keep schedule compact
+            if minutes % 60 == 0:
+                hours = minutes // 60
+                return f"H{hours}"
+            return f"M{minutes}"
+
+        def window_bounds(dt):
+            ws = dt.replace(hour=start_hour, minute=start_min, second=0, microsecond=0)
+            we = dt.replace(hour=end_hour, minute=end_min, second=0, microsecond=0)
+            if we <= ws:
+                we += timedelta(days=1)
+            return ws, we
+
+        window_start, window_end = window_bounds(current_dt)
+
+        # Find the first ON time (next cycle boundary inside window)
+        if current_dt < window_start:
+            first_on = window_start
+        elif current_dt >= window_end:
+            # Past today's window, start at next day's window start
+            next_day = current_dt + timedelta(days=1)
+            window_start, window_end = window_bounds(next_day)
+            first_on = window_start
+        else:
+            minutes_into_window = (current_dt - window_start).total_seconds() / 60
+            cycles_completed = int(minutes_into_window // self.cycle_minutes)
+            first_on = window_start + timedelta(minutes=(cycles_completed + 1) * self.cycle_minutes)
+            if first_on > window_end:
+                # No more slots today; start next day
+                next_day = current_dt + timedelta(days=1)
+                window_start, window_end = window_bounds(next_day)
+                first_on = window_start
+
+        begin_dt = first_on
+        end_dt = begin_dt + timedelta(days=365*100)
+
+        cursor = begin_dt
+        day_span_end = begin_dt + timedelta(hours=24)
         lines = [
-            f"BEGIN   {begin_str}",
-            f"END     {end_str}",
+            f"BEGIN   {begin_dt.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"END     {end_dt.strftime('%Y-%m-%d %H:%M:%S')}",
             "",
-            "ON M10 WAIT",
-            f"OFF M{off_duration}",
         ]
-        
-        content = "\n".join(lines)
-        return content
+
+        on_minutes = 10
+        cycle_minutes = self.cycle_minutes
+
+        while cursor < day_span_end:
+            # Ensure we are within a window; if not, jump to next window start
+            window_start, window_end = window_bounds(cursor)
+            if cursor < window_start:
+                # Jump to window start with an OFF covering the gap
+                gap_minutes = int((window_start - cursor).total_seconds() // 60)
+                if gap_minutes > 0:
+                    lines.append(f"OFF {fmt_duration(gap_minutes)}")
+                cursor = window_start
+                if cursor >= day_span_end:
+                    break
+
+            # If we're past the current window, add gap OFF to next day's window
+            elif cursor >= window_end:
+                next_window_start = window_start + timedelta(days=1)
+                gap_minutes = int((next_window_start - cursor).total_seconds() // 60)
+                if gap_minutes > 0:
+                    lines.append(f"OFF {fmt_duration(gap_minutes)}")
+                cursor = next_window_start
+                if cursor >= day_span_end:
+                    break
+                continue
+
+            # Schedule ON
+            lines.append("ON M10 WAIT")
+            on_end = cursor + timedelta(minutes=on_minutes)
+
+            # Decide OFF duration
+            next_cycle_start = cursor + timedelta(minutes=cycle_minutes)
+            if next_cycle_start <= window_end and next_cycle_start < day_span_end:
+                off_minutes = cycle_minutes - on_minutes
+                lines.append(f"OFF {fmt_duration(off_minutes)}")
+                cursor = next_cycle_start
+            else:
+                # Finish the 24h span exactly; last OFF bridges to next loop BEGIN
+                off_minutes = int((day_span_end - on_end).total_seconds() // 60)
+                if off_minutes > 0:
+                    lines.append(f"OFF {fmt_duration(off_minutes)}")
+                break
+
+        return "\n".join(lines)
     
     def write_schedule_file(self, current_dt=None, file_path=WITTYPI_SCHEDULE_PATH):
         """
-        Generate and write the schedule file to disk, then activate it.
+        Generate and write the full-day schedule file to disk, then activate it.
+        
+        This method should be called once when the schedule is set in the playlist editor.
+        The schedule will remain active until the user changes it or a new mount is detected.
         
         Args:
-            current_dt (datetime): Current datetime (defaults to now in configured timezone)
+            current_dt (datetime): Current datetime (defaults to now)
             file_path (str): Path to write the schedule file
             
         Returns:
@@ -231,6 +267,38 @@ def remove_schedule_file(file_path=WITTYPI_SCHEDULE_PATH):
     except Exception as e:
         logger.error(f"Failed to remove Witty Pi schedule file: {e}")
         return False
+
+
+def generate_schedule_for_playlist(wittypi_enabled, wittypi_start_time, wittypi_end_time, wittypi_cycle_minutes, wittypi_timezone):
+    """
+    Generate and write Witty Pi schedule file if enabled, or remove it if disabled.
+    
+    This is called when a playlist is created or updated via the web UI.
+    
+    Args:
+        wittypi_enabled (bool): Whether Witty Pi is enabled for this playlist
+        wittypi_start_time (str): Start time in "HH:MM" format
+        wittypi_end_time (str): End time in "HH:MM" format
+        wittypi_cycle_minutes (int): Cycle interval in minutes
+        wittypi_timezone (str): Timezone string
+    """
+    if not wittypi_enabled:
+        remove_schedule_file()
+        return
+    
+    try:
+        generator = WittyPiScheduleGenerator(
+            start_time_str=wittypi_start_time,
+            end_time_str=wittypi_end_time,
+            cycle_minutes=wittypi_cycle_minutes,
+            timezone_str=wittypi_timezone
+        )
+        if generator.write_schedule_file():
+            logger.info("Witty Pi schedule generated and activated successfully")
+        else:
+            logger.error("Failed to generate Witty Pi schedule")
+    except Exception as e:
+        logger.error(f"Error generating Witty Pi schedule: {e}")
 
 
 def get_next_bootup_time(file_path=WITTYPI_SCHEDULE_PATH):
