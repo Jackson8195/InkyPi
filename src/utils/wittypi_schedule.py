@@ -247,58 +247,58 @@ class WittyPiScheduleGenerator:
         except Exception as e:
             logger.error(f"Failed to write Witty Pi schedule: {e}")
             return False
-
-
-def remove_schedule_file(file_path=WITTYPI_SCHEDULE_PATH):
-    """
-    Remove the Witty Pi schedule file.
     
-    Args:
-        file_path (str): Path to the schedule file
+    @classmethod
+    def remove_schedule(cls, file_path=WITTYPI_SCHEDULE_PATH):
+        """
+        Remove the Witty Pi schedule file.
         
-    Returns:
-        bool: True if successful or file doesn't exist, False on error
-    """
-    try:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            logger.info(f"Removed Witty Pi schedule file: {file_path}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to remove Witty Pi schedule file: {e}")
-        return False
-
-
-def generate_schedule_for_playlist(wittypi_enabled, wittypi_start_time, wittypi_end_time, wittypi_cycle_minutes, wittypi_timezone):
-    """
-    Generate and write Witty Pi schedule file if enabled, or remove it if disabled.
+        Args:
+            file_path (str): Path to the schedule file
+            
+        Returns:
+            bool: True if successful or file doesn't exist, False on error
+        """
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                logger.info(f"Removed Witty Pi schedule file: {file_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to remove Witty Pi schedule file: {e}")
+            return False
     
-    This is called when a playlist is created or updated via the web UI.
-    
-    Args:
-        wittypi_enabled (bool): Whether Witty Pi is enabled for this playlist
-        wittypi_start_time (str): Start time in "HH:MM" format
-        wittypi_end_time (str): End time in "HH:MM" format
-        wittypi_cycle_minutes (int): Cycle interval in minutes
-        wittypi_timezone (str): Timezone string
-    """
-    if not wittypi_enabled:
-        remove_schedule_file()
-        return
-    
-    try:
-        generator = WittyPiScheduleGenerator(
-            start_time_str=wittypi_start_time,
-            end_time_str=wittypi_end_time,
-            cycle_minutes=wittypi_cycle_minutes,
-            timezone_str=wittypi_timezone
-        )
-        if generator.write_schedule_file():
-            logger.info("Witty Pi schedule generated and activated successfully")
-        else:
-            logger.error("Failed to generate Witty Pi schedule")
-    except Exception as e:
-        logger.error(f"Error generating Witty Pi schedule: {e}")
+    @classmethod
+    def generate_for_playlist(cls, wittypi_enabled, wittypi_start_time, wittypi_end_time, wittypi_cycle_minutes, wittypi_timezone):
+        """
+        Generate and write Witty Pi schedule file if enabled, or remove it if disabled.
+        
+        This is called when a playlist is created or updated via the web UI.
+        
+        Args:
+            wittypi_enabled (bool): Whether Witty Pi is enabled for this playlist
+            wittypi_start_time (str): Start time in "HH:MM" format
+            wittypi_end_time (str): End time in "HH:MM" format
+            wittypi_cycle_minutes (int): Cycle interval in minutes
+            wittypi_timezone (str): Timezone string
+        """
+        if not wittypi_enabled:
+            cls.remove_schedule()
+            return
+        
+        try:
+            generator = cls(
+                start_time_str=wittypi_start_time,
+                end_time_str=wittypi_end_time,
+                cycle_minutes=wittypi_cycle_minutes,
+                timezone_str=wittypi_timezone
+            )
+            if generator.write_schedule_file():
+                logger.info("Witty Pi schedule generated and activated successfully")
+            else:
+                logger.error("Failed to generate Witty Pi schedule")
+        except Exception as e:
+            logger.error(f"Error generating Witty Pi schedule: {e}")
 
 
 def get_next_bootup_time(file_path=WITTYPI_SCHEDULE_PATH):

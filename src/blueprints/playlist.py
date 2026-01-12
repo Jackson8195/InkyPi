@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, render_template
 from utils.time_utils import calculate_seconds
-from utils.wittypi_schedule import generate_schedule_for_playlist
+from utils.wittypi_schedule import WittyPiScheduleGenerator
 import json
 from datetime import datetime, timedelta
 import os
@@ -136,7 +136,7 @@ def create_playlist():
         device_config.write_config()
         
         # Generate Witty Pi schedule if enabled
-        generate_schedule_for_playlist(wittypi_enabled, wittypi_start_time, wittypi_end_time, wittypi_cycle_minutes, wittypi_timezone)
+        WittyPiScheduleGenerator.generate_for_playlist(wittypi_enabled, wittypi_start_time, wittypi_end_time, wittypi_cycle_minutes, wittypi_timezone)
 
     except Exception as e:
         logger.exception("EXCEPTION CAUGHT: " + str(e))
@@ -204,7 +204,7 @@ def update_playlist(playlist_name):
     device_config.write_config()
     
     # Generate Witty Pi schedule if enabled
-    generate_schedule_for_playlist(wittypi_enabled, wittypi_start_time, wittypi_end_time, wittypi_cycle_minutes, wittypi_timezone)
+    WittyPiScheduleGenerator.generate_for_playlist(wittypi_enabled, wittypi_start_time, wittypi_end_time, wittypi_cycle_minutes, wittypi_timezone)
 
     return jsonify({"success": True, "message": f"Updated playlist '{playlist_name}'!"})
 

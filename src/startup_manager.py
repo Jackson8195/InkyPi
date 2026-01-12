@@ -10,7 +10,7 @@ import subprocess
 from refresh_task import PlaylistRefresh
 from utils.mount_detection import MountSelector, MCP23017NotAvailable
 from utils.uptime_tracker import append_runtime, get_total_runtime
-from utils.wittypi_schedule import generate_schedule_for_playlist, remove_schedule_file
+from utils.wittypi_schedule import WittyPiScheduleGenerator
 
 
 class StartupManager:
@@ -94,7 +94,7 @@ class StartupManager:
         if not current_playlist:
             if last_scheduled:
                 self.logger.info("No playlist mounted; removing Witty Pi schedule")
-                remove_schedule_file()
+                WittyPiScheduleGenerator.remove_schedule()
                 self._clear_scheduled_playlist_metadata()
             return
         
@@ -102,7 +102,7 @@ class StartupManager:
         if not current_playlist.wittypi_enabled:
             if last_scheduled:
                 self.logger.info("Witty Pi disabled for current playlist; removing schedule")
-                remove_schedule_file()
+                WittyPiScheduleGenerator.remove_schedule()
                 self._clear_scheduled_playlist_metadata()
             return
         
@@ -112,7 +112,7 @@ class StartupManager:
             self.logger.info(
                 f"Witty Pi schedule needs update (was: {last_scheduled}, now: {current_playlist_name})"
             )
-            generate_schedule_for_playlist(
+            WittyPiScheduleGenerator.generate_for_playlist(
                 wittypi_enabled=True,
                 wittypi_start_time=current_playlist.wittypi_start_time,
                 wittypi_end_time=current_playlist.wittypi_end_time,
@@ -203,7 +203,7 @@ class StartupManager:
         
         if not startup_config:
             self.logger.info("No startup playlist configured")
-            remove_schedule_file()
+            WittyPiScheduleGenerator.remove_schedule()
             self._clear_scheduled_playlist_metadata()
             return
         
