@@ -7,6 +7,29 @@ class MCP23017NotAvailable(RuntimeError):
     """Raised when the MCP23017 dependency stack is missing."""
 
 
+def is_valid_mount_assignment(state_bits: str) -> bool:
+    """
+    Check if state_bits represents a valid mount assignment.
+    
+    Returns False for "111" (all switches open - reserved for "no mount detected")
+    and for invalid bit strings. Returns True for any other valid 3-bit pattern.
+    
+    Args:
+        state_bits: A 3-character string of '0' and '1' representing switch states
+        
+    Returns:
+        bool: True if this is a valid mount assignment, False otherwise
+    """
+    if not state_bits or len(state_bits) != 3:
+        return False
+    if not all(ch in ("0", "1") for ch in state_bits):
+        return False
+    # "111" (all switches open) is reserved for "no mount detected"
+    if state_bits == "111":
+        return False
+    return True
+
+
 @dataclass
 class MountDetection:
     state_bits: str

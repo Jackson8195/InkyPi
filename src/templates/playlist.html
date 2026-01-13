@@ -88,6 +88,11 @@
             document.getElementById("start_time").value = "00:00";
             document.getElementById("end_time").value = "24:00";
             
+            // Reset mount assignment (disabled by default for new playlists)
+            document.getElementById("mount_assignment_enabled").checked = false;
+            setMountSelector("111"); // All unchecked
+            updateMountSelectorVisibility();
+            
             document.getElementById("saveButton").setAttribute("onclick", "createPlaylist()");
             document.getElementById("deleteButton").classList.add("hidden"); // Hide delete button
 
@@ -110,7 +115,10 @@
 
             // Prefill mount selector from mapping
             const bits = getBitsForPlaylist(playlistName);
+            const hasMountAssignment = bits && bits !== "111"; // "111" means no mount
+            document.getElementById("mount_assignment_enabled").checked = hasMountAssignment;
             setMountSelector(bits);
+            updateMountSelectorVisibility();
 
             document.getElementById("saveButton").setAttribute("onclick", "updatePlaylist()");
             document.getElementById("deleteButton").classList.remove("hidden"); // Show delete button
@@ -138,6 +146,16 @@
             }
         }
 
+        function updateMountSelectorVisibility() {
+            const mountAssignmentEnabled = document.getElementById("mount_assignment_enabled").checked;
+            const mountSelectorContainer = document.getElementById("mount_selector_container");
+            if (mountAssignmentEnabled) {
+                mountSelectorContainer.classList.remove("hidden");
+            } else {
+                mountSelectorContainer.classList.add("hidden");
+            }
+        }
+
         async function createPlaylist() {
             let playlistName = document.getElementById("playlist_name").value.trim();
             let startTime = document.getElementById("start_time").value;
@@ -147,9 +165,19 @@
             let wittypiEndTime = document.getElementById("wittypi_end_time").value;
             let wittypiCycleMinutes = parseInt(document.getElementById("wittypi_cycle_minutes").value);
             let wittypiTimezone = document.getElementById("wittypi_timezone").value;
+            let mountAssignmentEnabled = document.getElementById("mount_assignment_enabled").checked;
+
+            // Validate mount assignment
+            if (mountAssignmentEnabled) {
+                const bits = getMountBits();
+                if (bits === "111") {
+                    showResponseModal('failure', 'Error! At least one magnet location must be selected when mount assignment is enabled.');
+                    return;
+                }
+            }
 
             try {
-                const mountBits = getMountBits();
+                const mountBits = mountAssignmentEnabled ? getMountBits() : "111"; // "111" = no mount assignment
                 const response = await fetch("{{ url_for('playlist.create_playlist') }}", {
                     method: "POST",
                     headers: {
@@ -192,9 +220,19 @@
             let wittypiEndTime = document.getElementById("wittypi_end_time").value;
             let wittypiCycleMinutes = parseInt(document.getElementById("wittypi_cycle_minutes").value);
             let wittypiTimezone = document.getElementById("wittypi_timezone").value;
+            let mountAssignmentEnabled = document.getElementById("mount_assignment_enabled").checked;
+
+            // Validate mount assignment
+            if (mountAssignmentEnabled) {
+                const bits = getMountBits();
+                if (bits === "111") {
+                    showResponseModal('failure', 'Error! At least one magnet location must be selected when mount assignment is enabled.');
+                    return;
+                }
+            }
 
             try {
-                const mountBits = getMountBits();
+                const mountBits = mountAssignmentEnabled ? getMountBits() : "111"; // "111" = no mount assignment
                 const response = await fetch("{{ url_for('playlist.update_playlist', playlist_name='') }}" + oldName, {
                     method: "PUT",
                     headers: {
@@ -410,21 +448,30 @@
                 <!-- Mount Selector: 3 reed switches mapped to MCP23017 GPIO A0, A1, A2 (left→right) -->
                 <div class="separator"></div>
                 <div class="form-group">
-                    <label class="form-label">Assign to Mount:</label>
-                    <div class="radio-group">
-                        <label class="form-label">
-                            <input type="checkbox" id="mount_a0" name="mount_a0">
-                            <span>GPIO A0 — magnet present</span>
-                        </label>
-                        <label class="form-label">
-                            <input type="checkbox" id="mount_a1" name="mount_a1">
-                            <span>GPIO A1 — magnet present</span>
-                        </label>
-                        <label class="form-label">
-                            <input type="checkbox" id="mount_a2" name="mount_a2">
-                            <span>GPIO A2 — magnet present</span>
-                        </label>
-                        <div class="form-help">Left→right order is A0, A1, A2. Checked = magnet present.Saves bits in A0A1A2 order.</div>
+                    <label class="form-label">
+                        <input type="checkbox" id="mount_assignment_enabled" name="mount_assignment_enabled" onchange="updateMountSelectorVisibility()">
+                        <span>Assign this playlist to mount</span>
+                    </label>
+                </div>
+                
+                <div id="mount_selector_container" class="hidden">
+                    <div class="form-group">
+                        <label class="form-label">Magnet Locations (select at least one):</label>
+                        <div class="radio-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="mount_a0" name="mount_a0">
+                                <span>GPIO A0 — magnet present</span>
+                            </label>
+                            <label class="form-label">
+                                <input type="checkbox" id="mount_a1" name="mount_a1">
+                                <span>GPIO A1 — magnet present</span>
+                            </label>
+                            <label class="form-label">
+                                <input type="checkbox" id="mount_a2" name="mount_a2">
+                                <span>GPIO A2 — magnet present</span>
+                            </label>
+                            <div class="form-help">Left→right order is A0, A1, A2. Checked = magnet present. Saves bits in A0A1A2 order.</div>
+                        </div>
                     </div>
                 </div>
             </form>

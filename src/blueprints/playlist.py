@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app, render_template
 from utils.time_utils import calculate_seconds
 from utils.wittypi_schedule import WittyPiScheduleGenerator
+from utils.mount_detection import is_valid_mount_assignment
 import json
 from datetime import datetime, timedelta
 import os
@@ -121,8 +122,9 @@ def create_playlist():
             return jsonify({"error": "Failed to create playlist"}), 500
 
         # Optional: assign this playlist to a mount state based on 3 reed switches
+        # Only add to mapping if state_bits is a valid mount assignment (not "111" = all open)
         mount_bits = data.get("mount_bits")
-        if mount_bits and len(mount_bits) == 3 and all(ch in ("0","1") for ch in mount_bits):
+        if is_valid_mount_assignment(mount_bits):
             cfg = device_config.get_config("mount_startup_playlists", default={})
             # Initialize if missing
             if not cfg:
@@ -185,22 +187,27 @@ def update_playlist(playlist_name):
         return jsonify({"error": "Failed to update playlist"}), 500
     
     # Optional: update mount mapping for this playlist
+    # Only add to mapping if state_bits is a valid mount assignment (not "111" = all open)
     mount_bits = data.get("mount_bits")
-    if mount_bits and len(mount_bits) == 3 and all(ch in ("0","1") for ch in mount_bits):
-        cfg = device_config.get_config("mount_startup_playlists", default={})
-        if not cfg:
-            cfg = {"enabled": True, "state_to_playlist": {}}
-        elif "state_to_playlist" not in cfg:
-            cfg["state_to_playlist"] = {}
-        # Remove any previous mapping pointing to the old playlist name
-        try:
-            for key, val in list(cfg["state_to_playlist"].items()):
-                if val == playlist_name:
-                    del cfg["state_to_playlist"][key]
-        except Exception:
-            pass
+    cfg = device_config.get_config("mount_startup_playlists", default={})
+    if not cfg:
+        cfg = {"enabled": True, "state_to_playlist": {}}
+    elif "state_to_playlist" not in cfg:
+        cfg["state_to_playlist"] = {}
+    
+    # Remove any previous mapping pointing to the old playlist name
+    try:
+        for key, val in list(cfg["state_to_playlist"].items()):
+            if val == playlist_name:
+                del cfg["state_to_playlist"][key]
+    except Exception:
+        pass
+    
+    # Add new mapping only if state_bits is a valid mount assignment
+    if is_valid_mount_assignment(mount_bits):
         cfg["state_to_playlist"][mount_bits] = new_name
-        device_config.update_value("mount_startup_playlists", cfg, write=True)
+    
+    device_config.update_value("mount_startup_playlists", cfg, write=True)
     device_config.write_config()
     
     # Generate Witty Pi schedule if enabled
