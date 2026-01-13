@@ -164,15 +164,29 @@ class WittyPiScheduleGenerator:
                     break
                 continue
             
-            # If at or past window end, add OFF to next day's window start
+            # If at or past window end, check if we should do final ON at boundary
             elif cursor >= window_end:
-                next_window_start = window_start + timedelta(days=1)
-                gap_minutes = int((next_window_start - cursor).total_seconds() // 60)
-                if gap_minutes > 0:
-                    lines.append(f"OFF\t{fmt_duration(gap_minutes)}")
-                cursor = next_window_start
-                if cursor >= day_span_end:
-                    break
+                # If exactly at window_end and haven't exceeded 24h, do final ON before overnight
+                if cursor == window_end and cursor < day_span_end:
+                    lines.append(f"ON\tM{on_minutes}\tWAIT")
+                    cursor += timedelta(minutes=on_minutes)
+                    # Now add overnight OFF to next day's window start
+                    next_window_start = window_start + timedelta(days=1)
+                    gap_minutes = int((next_window_start - cursor).total_seconds() // 60)
+                    if gap_minutes > 0:
+                        lines.append(f"OFF\t{fmt_duration(gap_minutes)}")
+                    cursor = next_window_start
+                    if cursor >= day_span_end:
+                        break
+                else:
+                    # Past window_end (shouldn't happen with current logic, but handle it)
+                    next_window_start = window_start + timedelta(days=1)
+                    gap_minutes = int((next_window_start - cursor).total_seconds() // 60)
+                    if gap_minutes > 0:
+                        lines.append(f"OFF\t{fmt_duration(gap_minutes)}")
+                    cursor = next_window_start
+                    if cursor >= day_span_end:
+                        break
                 continue
             
             # We're within the window - emit ON
