@@ -158,7 +158,7 @@ class WittyPiScheduleGenerator:
                 # Jump to window start with an OFF covering the gap
                 gap_minutes = int((window_start - cursor).total_seconds() // 60)
                 if gap_minutes > 0:
-                    lines.append(f"OFF {fmt_duration(gap_minutes)}")
+                    lines.append(f"OFF\t{fmt_duration(gap_minutes)}")
                 cursor = window_start
                 if cursor >= day_span_end:
                     break
@@ -168,27 +168,27 @@ class WittyPiScheduleGenerator:
                 next_window_start = window_start + timedelta(days=1)
                 gap_minutes = int((next_window_start - cursor).total_seconds() // 60)
                 if gap_minutes > 0:
-                    lines.append(f"OFF {fmt_duration(gap_minutes)}")
+                    lines.append(f"OFF\t{fmt_duration(gap_minutes)}")
                 cursor = next_window_start
                 if cursor >= day_span_end:
                     break
                 continue
 
             # Schedule ON
-            lines.append("ON M10 WAIT")
+            lines.append(f"ON\tM{on_minutes}\tWAIT")
             on_end = cursor + timedelta(minutes=on_minutes)
 
             # Decide OFF duration
             next_cycle_start = cursor + timedelta(minutes=cycle_minutes)
             if next_cycle_start <= window_end and next_cycle_start < day_span_end:
                 off_minutes = cycle_minutes - on_minutes
-                lines.append(f"OFF {fmt_duration(off_minutes)}")
+                lines.append(f"OFF\t{fmt_duration(off_minutes)}")
                 cursor = next_cycle_start
             else:
                 # Finish the 24h span exactly; last OFF bridges to next loop BEGIN
                 off_minutes = int((day_span_end - on_end).total_seconds() // 60)
                 if off_minutes > 0:
-                    lines.append(f"OFF {fmt_duration(off_minutes)}")
+                    lines.append(f"OFF\t{fmt_duration(off_minutes)}")
                 break
 
         return "\n".join(lines)
