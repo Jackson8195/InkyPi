@@ -179,18 +179,18 @@ class WittyPiScheduleGenerator:
             lines.append(f"ON\tM{on_minutes}\tWAIT")
             cursor += timedelta(minutes=on_minutes)
             
-            # Calculate OFF to next cycle start (or end of day if that comes first)
-            next_on = cursor + timedelta(minutes=cycle_minutes - on_minutes)
+            # Calculate where the next full cycle would end
+            next_cycle_end = cursor + timedelta(minutes=cycle_minutes)
             
-            # Determine where this OFF should end
-            if next_on > day_span_end:
-                # Would exceed 24h boundary - OFF brings us exactly to BEGIN
+            # Determine OFF duration based on what comes next
+            if next_cycle_end > day_span_end:
+                # Would exceed 24h - OFF brings us exactly back to BEGIN
                 off_minutes = int((day_span_end - cursor).total_seconds() // 60)
-            elif next_on > window_end:
-                # Would exceed window - OFF brings us to window end, then we'll handle overnight
+            elif next_cycle_end > window_end:
+                # Next cycle would exceed window - do partial OFF to window_end, then we'll do one more ON there
                 off_minutes = int((window_end - cursor).total_seconds() // 60)
             else:
-                # Normal OFF within window
+                # Normal cycle within window
                 off_minutes = cycle_minutes - on_minutes
             
             if off_minutes > 0:
