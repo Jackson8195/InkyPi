@@ -165,7 +165,7 @@ class WittyPiScheduleGenerator:
                 continue
             
             # If we're past the window, skip to next day's window start
-            if cursor >= window_end:
+            if cursor > window_end:
                 next_window_start = window_start + timedelta(days=1)
                 gap_minutes = int((next_window_start - cursor).total_seconds() // 60)
                 if gap_minutes > 0:
@@ -175,19 +175,23 @@ class WittyPiScheduleGenerator:
                     break
                 continue
             
-            # We're within the window. Emit ON
+            # We're within or at the window. Emit ON with WAIT
             lines.append(f"ON\tM{on_minutes}\tWAIT")
             on_end = cursor + timedelta(minutes=on_minutes)
             next_cycle_end = cursor + timedelta(minutes=cycle_minutes)
             
             # Determine OFF duration and where it ends
-            if next_cycle_end <= window_end and next_cycle_end < day_span_end:
+            if cursor == window_end:
+                # At boundary: bridge to next day's window start
+                next_window_start = window_start + timedelta(days=1)
+                off_end = next_window_start
+            elif next_cycle_end <= window_end and next_cycle_end < day_span_end:
                 # Normal cycle: OFF ends within window
                 off_end = next_cycle_end
             else:
-                # OFF would go past window end: extend to next window start
-                next_window_start = window_start + timedelta(days=1)
-                off_end = next_window_start
+                # Next cycle would exceed window: advance cursor to window_end for boundary ON
+                cursor = window_end
+                continue
             
             off_minutes = int((off_end - on_end).total_seconds() // 60)
             if off_minutes > 0:
