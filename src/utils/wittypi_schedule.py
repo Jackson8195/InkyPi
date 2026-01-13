@@ -154,7 +154,7 @@ class WittyPiScheduleGenerator:
         while cursor < day_span_end:
             window_start, window_end = window_bounds(cursor)
             
-            # If we're before the window, skip to window start
+            # If before window, add OFF to jump to window start
             if cursor < window_start:
                 gap_minutes = int((window_start - cursor).total_seconds() // 60)
                 if gap_minutes > 0:
@@ -164,8 +164,8 @@ class WittyPiScheduleGenerator:
                     break
                 continue
             
-            # If we're past the window, skip to next day's window start
-            if cursor > window_end:
+            # If at or past window end, add OFF to next day's window start
+            elif cursor >= window_end:
                 next_window_start = window_start + timedelta(days=1)
                 gap_minutes = int((next_window_start - cursor).total_seconds() // 60)
                 if gap_minutes > 0:
@@ -175,29 +175,27 @@ class WittyPiScheduleGenerator:
                     break
                 continue
             
-            # We're within or at the window. Emit ON with WAIT
+            # We're within the window - emit ON
             lines.append(f"ON\tM{on_minutes}\tWAIT")
-            on_end = cursor + timedelta(minutes=on_minutes)
-            next_cycle_end = cursor + timedelta(minutes=cycle_minutes)
+            cursor += timedelta(minutes=on_minutes)
             
-            # Determine OFF duration and where it ends
-            if cursor == window_end:
-                # At boundary: bridge to next day's window start
-                next_window_start = window_start + timedelta(days=1)
-                off_end = next_window_start
-            elif next_cycle_end <= window_end and next_cycle_end < day_span_end:
-                # Normal cycle: OFF ends within window
-                off_end = next_cycle_end
+            # Calculate OFF to next cycle start (or end of day if that comes first)
+            next_on = cursor + timedelta(minutes=cycle_minutes - on_minutes)
+            
+            # Determine where this OFF should end
+            if next_on > day_span_end:
+                # Would exceed 24h boundary - OFF brings us exactly to BEGIN
+                off_minutes = int((day_span_end - cursor).total_seconds() // 60)
+            elif next_on > window_end:
+                # Would exceed window - OFF brings us to window end, then we'll handle overnight
+                off_minutes = int((window_end - cursor).total_seconds() // 60)
             else:
-                # Next cycle would exceed window: advance cursor to window_end for boundary ON
-                cursor = window_end
-                continue
+                # Normal OFF within window
+                off_minutes = cycle_minutes - on_minutes
             
-            off_minutes = int((off_end - on_end).total_seconds() // 60)
             if off_minutes > 0:
                 lines.append(f"OFF\t{fmt_duration(off_minutes)}")
-            
-            cursor = off_end
+            cursor += timedelta(minutes=off_minutes)
 
         return "\n".join(lines)
     
