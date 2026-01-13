@@ -143,8 +143,8 @@ class WittyPiScheduleGenerator:
         cursor = begin_dt
         day_span_end = begin_dt + timedelta(hours=24)
         lines = [
-            f"BEGIN   {begin_dt.strftime('%Y-%m-%d %H:%M:%S')}",
-            f"END     {end_dt.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"BEGIN\t{begin_dt.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"END\t{end_dt.strftime('%Y-%m-%d %H:%M:%S')}",
             "",
         ]
 
@@ -213,15 +213,26 @@ class WittyPiScheduleGenerator:
             content = self.generate_schedule_content(current_dt)
             if content is None:
                 return False
+            # Debug: show the entire schedule content before writing
+            logger.debug("Generated Witty Pi schedule content to write:\n%s", content)
             
             # Ensure directory exists
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             
-            # Write file
-            with open(file_path, 'w') as f:
+            # Write file with explicit LF newlines and ensure it is flushed to disk
+            with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
                 f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
             
             logger.info(f"Wrote Witty Pi schedule to {file_path}")
+            # Debug: read back and log what was saved
+            try:
+                with open(file_path, 'r', encoding='utf-8') as rf:
+                    saved = rf.read()
+                logger.debug("Saved Witty Pi schedule at %s:\n%s", file_path, saved)
+            except Exception as read_err:
+                logger.debug("Unable to read back saved schedule for debug: %s", read_err)
             
             # Activate the schedule by running Witty Pi's runScript.sh
             try:
@@ -231,6 +242,9 @@ class WittyPiScheduleGenerator:
                     text=True,
                     timeout=30
                 )
+                # Debug: capture detailed stdout/stderr from activation
+                logger.debug("runScript.sh stdout:\n%s", result.stdout)
+                logger.debug("runScript.sh stderr:\n%s", result.stderr)
                 if result.returncode == 0:
                     logger.info("Witty Pi schedule activated successfully")
                 else:
