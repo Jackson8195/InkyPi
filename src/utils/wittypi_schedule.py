@@ -138,7 +138,7 @@ class WittyPiScheduleGenerator:
                 first_on = window_start
 
         begin_dt = first_on
-        end_dt = begin_dt + timedelta(days=365*100)
+        end_dt = begin_dt + timedelta(days=365*10)
 
         cursor = begin_dt
         day_span_end = begin_dt + timedelta(hours=24)
