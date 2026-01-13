@@ -89,7 +89,7 @@ class WittyPiScheduleGenerator:
         - Emit ON 10 / OFF (cycle-10) while inside the window
         - At window end, emit a single OFF spanning to the next day's window start
         - Build exactly 24 hours of instructions; Witty Pi will repeat the loop
-        - END is set 100 years out (indefinite repeat)
+        - END is set 100 years out
         """
         if current_dt is None:
             current_dt = datetime.now(self.tz)
