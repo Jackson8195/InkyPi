@@ -163,17 +163,39 @@ def set_full_charge_now():
 
 WITTY_LOG = Path("/home/pi/wittypi/wittyPi.log")
 
-def read_witty_vin():
+def read_witty_status():
+    """Read Witty Pi status from log file.
+    
+    Returns:
+        dict: {'vin': float or None, 'next_startup': datetime or None}
+    """
+    result = {'vin': None, 'next_startup': None}
+    
     try:
         lines = WITTY_LOG.read_text().strip().splitlines()
-        # find the last line containing "Current Vin"
+        
+        # Search backwards through log for both values
         for line in reversed(lines):
-            m = re.search(r"Current\s+Vin\s*=\s*([\d.]+)", line, re.IGNORECASE)
-            if m:
-                return float(m.group(1))
+            # Look for voltage if we haven't found it yet
+            if result['vin'] is None:
+                m = re.search(r"Current\s+Vin\s*=\s*([\d.]+)", line, re.IGNORECASE)
+                if m:
+                    result['vin'] = float(m.group(1))
+            
+            # Look for next startup if we haven't found it yet
+            if result['next_startup'] is None:
+                m = re.search(r"Schedule\s+next\s+startup\s+at:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})", line, re.IGNORECASE)
+                if m:
+                    dt_str = m.group(1)
+                    result['next_startup'] = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
+            
+            # Stop early if we found both
+            if result['vin'] is not None and result['next_startup'] is not None:
+                break
     except Exception:
         pass
-    return None
+    
+    return result
 
 def vin_to_percent(v, v_empty=3.3, v_full=4.2):
     if v is None:
