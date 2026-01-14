@@ -120,6 +120,7 @@ class WittyPiScheduleGenerator:
         window_start, window_end = window_bounds(current_dt)
 
         # Find the first ON time (next cycle boundary inside window)
+        # The schedule always begins at the window start time for consistency
         if current_dt < window_start:
             first_on = window_start
         elif current_dt >= window_end:
@@ -128,14 +129,9 @@ class WittyPiScheduleGenerator:
             window_start, window_end = window_bounds(next_day)
             first_on = window_start
         else:
-            minutes_into_window = (current_dt - window_start).total_seconds() / 60
-            cycles_completed = int(minutes_into_window // self.cycle_minutes)
-            first_on = window_start + timedelta(minutes=(cycles_completed + 1) * self.cycle_minutes)
-            if first_on > window_end:
-                # No more slots today; start next day
-                next_day = current_dt + timedelta(days=1)
-                window_start, window_end = window_bounds(next_day)
-                first_on = window_start
+            # We're inside the window - always start at window_start for the next cycle
+            # This ensures consistency: every day starts at window_start
+            first_on = window_start
 
         begin_dt = first_on
         end_dt = begin_dt + timedelta(days=365*10)
