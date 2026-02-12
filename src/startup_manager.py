@@ -4,7 +4,6 @@ Encapsulates complex initialization logic for better testability and maintainabi
 """
 
 import os
-import threading
 import logging
 import subprocess
 from refresh_task import PlaylistRefresh
@@ -159,16 +158,25 @@ class StartupManager:
         
         for entry in playlist.plugins:
             pr = PlaylistRefresh(playlist, entry, force=True)
-            
-            done = threading.Event()
-            try:
-                self.refresh_task.manual_update(pr, completion_event=done)
-                done.wait(timeout=per_plugin_timeout)
-            except TypeError:
-                # Fallback for older refresh_task API
-                self.refresh_task.manual_update(pr)
-                import time
-                time.sleep(min(10, per_plugin_timeout))
+
+            attempts = 0
+            while True:
+                try:
+                    self.refresh_task.manual_update(pr, timeout=per_plugin_timeout)
+                    break
+                except TimeoutError:
+                    attempts += 1
+                    if attempts == 1:
+                        self.logger.warning(
+                            "Manual update timed out for '%s'; retrying once",
+                            entry.name,
+                        )
+                        continue
+                    self.logger.error(
+                        "Manual update timed out for '%s'; continuing startup sequence",
+                        entry.name,
+                    )
+                    break
     
     def shutdown_system(self):
         """Gracefully shutdown the system, recording uptime first."""

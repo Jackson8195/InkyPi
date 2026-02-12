@@ -133,7 +133,7 @@ class RefreshTask:
             finally:
                 self.refresh_event.set()
 
-    def manual_update(self, refresh_action):
+    def manual_update(self, refresh_action, timeout=None):
         """Manually triggers an update for the specified plugin id and plugin settings by notifying the background process."""
         if self.running:
             with self.condition:
@@ -143,7 +143,9 @@ class RefreshTask:
 
                 self.condition.notify_all()  # Wake the thread to process manual update
 
-            self.refresh_event.wait()
+            finished = self.refresh_event.wait(timeout=timeout)
+            if not finished:
+                raise TimeoutError("Manual update timed out")
             if self.refresh_result.get("exception"):
                 raise self.refresh_result.get("exception")
         else:
