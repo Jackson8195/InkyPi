@@ -173,7 +173,13 @@ class StartupManager:
                         )
                         continue
                     self.logger.error(
-                        "Manual update timed out for '%s'; continuing startup sequence",
+                        "Manual update timed out for '%s' after retry; continuing startup sequence",
+                        entry.name,
+                    )
+                    break
+                except Exception:
+                    self.logger.exception(
+                        "Manual update failed for '%s'; continuing startup sequence",
                         entry.name,
                     )
                     break
@@ -235,11 +241,14 @@ class StartupManager:
             self.setup_wittypi_schedule(playlist)
             
             # Run the playlist
-            self.run_playlist(playlist, per_plugin_timeout)
+            try:
+                self.run_playlist(playlist, per_plugin_timeout)
+            except Exception:
+                self.logger.exception("Startup playlist execution failed")
             
-            # Shutdown if configured
+            # Shutdown if configured — always reached even if run_playlist fails
             if shutdown_after:
                 self.shutdown_system()
         
         except Exception:
-            self.logger.exception("Startup playlist execution failed")
+            self.logger.exception("Startup manager execution failed")
