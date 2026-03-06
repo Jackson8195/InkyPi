@@ -237,6 +237,9 @@
                 }
 
                 let selectedFrameOption = document.querySelector(`.image-option[data-face-name="${pluginSettings.selectedFrame}"]`);
+                if (!selectedFrameOption) {
+                    selectedFrameOption = document.querySelector('.image-option');
+                }
                 selectedFrame(selectedFrameOption);
             } else {
                 // set default values
@@ -290,7 +293,7 @@
                                     </div>
                                     {% endfor %}
                                 </div>
-                                <input type="hidden" id="selected-frame" name="selectedFrame" value="{{ frame_styles[0].Name }}" />
+                                <input type="hidden" id="selected-frame" name="selectedFrame" value="{{ frame_styles[0].name }}" />
                             </div>
 
                             <div class="form-group">
