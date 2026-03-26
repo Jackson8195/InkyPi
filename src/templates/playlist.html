@@ -87,12 +87,16 @@
             document.getElementById("editingPlaylistName").value = ""; // Empty value means it's new
             document.getElementById("start_time").value = "00:00";
             document.getElementById("end_time").value = "24:00";
-            
+
+            // Reset Witty Pi (disabled by default for new playlists)
+            document.getElementById("wittypi_enabled").checked = false;
+            updateWittyPiFieldsVisibility();
+
             // Reset mount assignment (disabled by default for new playlists)
             document.getElementById("mount_assignment_enabled").checked = false;
             setMountSelector("111"); // All unchecked
             updateMountSelectorVisibility();
-            
+
             document.getElementById("saveButton").setAttribute("onclick", "createPlaylist()");
             document.getElementById("deleteButton").classList.add("hidden"); // Hide delete button
 
@@ -139,10 +143,16 @@
         function updateWittyPiFieldsVisibility() {
             const wittypiEnabled = document.getElementById("wittypi_enabled").checked;
             const wittypiFieldsContainer = document.getElementById("wittypi_fields_container");
+            const displayTimeContainer = document.getElementById("display_time_container");
             if (wittypiEnabled) {
                 wittypiFieldsContainer.classList.remove("hidden");
+                // Hide display time and set to 24hr — Witty Pi controls power/refresh
+                displayTimeContainer.classList.add("hidden");
+                document.getElementById("start_time").value = "00:00";
+                document.getElementById("end_time").value = "24:00";
             } else {
                 wittypiFieldsContainer.classList.add("hidden");
+                displayTimeContainer.classList.remove("hidden");
             }
         }
 
@@ -402,7 +412,7 @@
                     <label for="playlist_name" class="form-label">Playlist Name:</label>
                     <input type="text" id="playlist_name" name="playlist_name" placeholder="Type something..." required class="form-input">
                 </div>
-                <div class="form-group nowrap">
+                <div id="display_time_container" class="form-group">
                     <label for="start_time" class="form-label">Display from </label>
                     <select id="start_time" name="start_time" class="form-input time-select"></select>
                     <span> - </span>
@@ -419,7 +429,7 @@
                 </div>
                 
                 <div id="wittypi_fields_container" class="hidden">
-                    <div class="form-group nowrap">
+                    <div class="form-group">
                         <label for="wittypi_start_time" class="form-label">Power On from </label>
                         <select id="wittypi_start_time" name="wittypi_start_time" class="form-input time-select"></select>
                         <span> - </span>
