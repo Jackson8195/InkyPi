@@ -19,10 +19,14 @@ def get_image(image_url):
     return img
 
 def change_orientation(image, orientation, inverted=False):
-    if orientation == 'horizontal':
+    angle_map = {
+        "horizontal": 0,
+        "vertical": 90
+    }
+    angle = angle_map.get(orientation)
+    if angle is None:
+        logger.warning("Invalid or missing orientation '%s'; defaulting to horizontal.", orientation)
         angle = 0
-    elif orientation == 'vertical':
-        angle = 90
 
     if inverted:
         angle = (angle + 180) % 360
