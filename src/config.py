@@ -28,8 +28,12 @@ class Config:
     def read_config(self):
         """Reads the device config JSON file and returns it as a dictionary."""
         logger.debug(f"Reading device config from {self.config_file}")
-        with open(self.config_file) as f:
-            config = json.load(f)
+        try:
+            with open(self.config_file) as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            logger.warning(f"Failed to read config file: {e}. Using empty config.")
+            config = {}
 
         logger.debug("Loaded config:\n%s", json.dumps(config, indent=3))
 
@@ -57,8 +61,12 @@ class Config:
         logger.debug(f"Writing device config to {self.config_file}")
         self.update_value("playlist_config", self.playlist_manager.to_dict())
         self.update_value("refresh_info", self.refresh_info.to_dict())
-        with open(self.config_file, 'w') as outfile:
+        tmp_file = self.config_file + ".tmp"
+        with open(tmp_file, 'w') as outfile:
             json.dump(self.config, outfile, indent=4)
+            outfile.flush()
+            os.fsync(outfile.fileno())
+        os.replace(tmp_file, self.config_file)
 
     def get_config(self, key=None, default={}):
         """Gets the value of a specific configuration key or returns the entire config if none provided."""
