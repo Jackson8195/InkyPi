@@ -163,6 +163,26 @@ def set_full_charge_now():
 
 WITTY_LOG = Path("/home/pi/wittypi/wittyPi.log")
 
+# Calibrated from the observed discharge cycle that ran from 2026-02-20
+# through the last battery-backed VIN reading on 2026-03-05 18:00:25 while
+# waking hourly between 07:00 and 22:00. The percentages reflect remaining
+# real-world runtime for that usage pattern, not an ideal Li-ion discharge.
+EMPIRICAL_BATTERY_CURVE = [
+    (3.44, 0),
+    (3.50, 5),
+    (3.57, 20),
+    (3.63, 35),
+    (3.69, 47),
+    (3.75, 55),
+    (3.81, 63),
+    (3.87, 69),
+    (3.93, 77),
+    (4.00, 85),
+    (4.06, 91),
+    (4.12, 97),
+    (4.18, 100),
+]
+
 def read_witty_status():
     """Read Witty Pi status from log file.
     
@@ -200,5 +220,28 @@ def read_witty_status():
 def vin_to_percent(v, v_empty=3.3, v_full=4.2):
     if v is None:
         return None
-    pct = (v - v_empty) / (v_full - v_empty) * 100
-    return max(0, min(100, round(pct)))
+
+    # Preserve the legacy linear behavior if callers explicitly provide a
+    # custom range. The default path uses the observed device discharge curve.
+    if (v_empty, v_full) != (3.3, 4.2):
+        pct = (v - v_empty) / (v_full - v_empty) * 100
+        return max(0, min(100, round(pct)))
+
+    if v <= EMPIRICAL_BATTERY_CURVE[0][0]:
+        return EMPIRICAL_BATTERY_CURVE[0][1]
+    if v >= EMPIRICAL_BATTERY_CURVE[-1][0]:
+        return EMPIRICAL_BATTERY_CURVE[-1][1]
+
+    for (lower_v, lower_pct), (upper_v, upper_pct) in zip(
+        EMPIRICAL_BATTERY_CURVE,
+        EMPIRICAL_BATTERY_CURVE[1:],
+    ):
+        if lower_v <= v <= upper_v:
+            span = upper_v - lower_v
+            if span == 0:
+                return round(upper_pct)
+            ratio = (v - lower_v) / span
+            pct = lower_pct + (upper_pct - lower_pct) * ratio
+            return max(0, min(100, round(pct)))
+
+    return None
