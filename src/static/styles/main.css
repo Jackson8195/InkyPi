@@ -453,6 +453,18 @@ small {
     box-shadow: 0 0 0 2px var(--input-focus);
 }
 
+/* Keep time dropdowns aligned and same width */
+.time-select {
+    flex: 0 0 140px;
+    min-width: 120px;
+}
+
+@media (max-width: 520px) {
+    .time-select {
+        flex: 1 1 45%;
+    }
+}
+
 /* Toggle Container */
 .toggle-container {
     display: inline-block;

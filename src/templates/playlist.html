@@ -17,6 +17,10 @@
     <script src="{{ url_for('static', filename='scripts/dark_mode.js') }}"></script>
     <script src="{{ url_for('static', filename='scripts/response_modal.js') }}"></script>
     <script>
+        // Expose mount selector config to JS (bit->playlist mapping)
+        const MOUNT_SELECTOR_CONFIG = {{ mount_selector_config | tojson | safe }} || {};
+        const STATE_TO_PLAYLIST = (MOUNT_SELECTOR_CONFIG && MOUNT_SELECTOR_CONFIG.state_to_playlist) ? MOUNT_SELECTOR_CONFIG.state_to_playlist : {};
+
         async function deletePluginInstance(playlistName, pluginId, pluginInstance) {
             try {
                 const response = await fetch("{{ url_for('plugin.delete_plugin_instance') }}", {
@@ -83,7 +87,16 @@
             document.getElementById("editingPlaylistName").value = ""; // Empty value means it's new
             document.getElementById("start_time").value = "00:00";
             document.getElementById("end_time").value = "24:00";
-            
+
+            // Reset Witty Pi (disabled by default for new playlists)
+            document.getElementById("wittypi_enabled").checked = false;
+            updateWittyPiFieldsVisibility();
+
+            // Reset mount assignment (disabled by default for new playlists)
+            document.getElementById("mount_assignment_enabled").checked = false;
+            setMountSelector("111"); // All unchecked
+            updateMountSelectorVisibility();
+
             document.getElementById("saveButton").setAttribute("onclick", "createPlaylist()");
             document.getElementById("deleteButton").classList.add("hidden"); // Hide delete button
 
@@ -91,12 +104,25 @@
         }
 
         // Open modal for **editing** an existing playlist
-        function openEditModal(playlistName, startTime, endTime) {
+        function openEditModal(playlistName, startTime, endTime, wittypiEnabled = false, wittypiStartTime = "", wittypiEndTime = "", wittypiCycleMinutes = 60, wittypiTimezone = "UTC") {
             document.getElementById("modalTitle").textContent = "Update Playlist";
             document.getElementById("playlist_name").value = playlistName;
             document.getElementById("editingPlaylistName").value = playlistName;
             document.getElementById("start_time").value = startTime;
             document.getElementById("end_time").value = endTime;
+            document.getElementById("wittypi_enabled").checked = wittypiEnabled;
+            document.getElementById("wittypi_start_time").value = wittypiStartTime || startTime;
+            document.getElementById("wittypi_end_time").value = wittypiEndTime || endTime;
+            document.getElementById("wittypi_cycle_minutes").value = wittypiCycleMinutes;
+            document.getElementById("wittypi_timezone").value = wittypiTimezone;
+            updateWittyPiFieldsVisibility();
+
+            // Prefill mount selector from mapping
+            const bits = getBitsForPlaylist(playlistName);
+            const hasMountAssignment = bits && bits !== "111"; // "111" means no mount
+            document.getElementById("mount_assignment_enabled").checked = hasMountAssignment;
+            setMountSelector(bits);
+            updateMountSelectorVisibility();
 
             document.getElementById("saveButton").setAttribute("onclick", "updatePlaylist()");
             document.getElementById("deleteButton").classList.remove("hidden"); // Show delete button
@@ -114,18 +140,70 @@
             modal.style.display = 'none';
         }
 
+        function updateWittyPiFieldsVisibility() {
+            const wittypiEnabled = document.getElementById("wittypi_enabled").checked;
+            const wittypiFieldsContainer = document.getElementById("wittypi_fields_container");
+            const displayTimeContainer = document.getElementById("display_time_container");
+            if (wittypiEnabled) {
+                wittypiFieldsContainer.classList.remove("hidden");
+                // Hide display time and set to 24hr — Witty Pi controls power/refresh
+                displayTimeContainer.classList.add("hidden");
+                document.getElementById("start_time").value = "00:00";
+                document.getElementById("end_time").value = "24:00";
+            } else {
+                wittypiFieldsContainer.classList.add("hidden");
+                displayTimeContainer.classList.remove("hidden");
+            }
+        }
+
+        function updateMountSelectorVisibility() {
+            const mountAssignmentEnabled = document.getElementById("mount_assignment_enabled").checked;
+            const mountSelectorContainer = document.getElementById("mount_selector_container");
+            if (mountAssignmentEnabled) {
+                mountSelectorContainer.classList.remove("hidden");
+            } else {
+                mountSelectorContainer.classList.add("hidden");
+            }
+        }
+
         async function createPlaylist() {
             let playlistName = document.getElementById("playlist_name").value.trim();
             let startTime = document.getElementById("start_time").value;
             let endTime = document.getElementById("end_time").value;
+            let wittypiEnabled = document.getElementById("wittypi_enabled").checked;
+            let wittypiStartTime = document.getElementById("wittypi_start_time").value;
+            let wittypiEndTime = document.getElementById("wittypi_end_time").value;
+            let wittypiCycleMinutes = parseInt(document.getElementById("wittypi_cycle_minutes").value);
+            let wittypiTimezone = document.getElementById("wittypi_timezone").value;
+            let mountAssignmentEnabled = document.getElementById("mount_assignment_enabled").checked;
+
+            // Validate mount assignment
+            if (mountAssignmentEnabled) {
+                const bits = getMountBits();
+                if (bits === "111") {
+                    showResponseModal('failure', 'Error! At least one magnet location must be selected when mount assignment is enabled.');
+                    return;
+                }
+            }
 
             try {
+                const mountBits = mountAssignmentEnabled ? getMountBits() : "111"; // "111" = no mount assignment
                 const response = await fetch("{{ url_for('playlist.create_playlist') }}", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ playlist_name: playlistName, start_time: startTime, end_time: endTime })
+                    body: JSON.stringify({ 
+                        playlist_name: playlistName, 
+                        start_time: startTime, 
+                        end_time: endTime,
+                        wittypi_enabled: wittypiEnabled,
+                        wittypi_start_time: wittypiStartTime,
+                        wittypi_end_time: wittypiEndTime,
+                        wittypi_cycle_minutes: wittypiCycleMinutes,
+                        wittypi_timezone: wittypiTimezone,
+                        mount_bits: mountBits
+                    })
                 });
 
                 const result = await response.json();
@@ -147,14 +225,40 @@
             let newName = document.getElementById("playlist_name").value;
             let startTime = document.getElementById("start_time").value;
             let endTime = document.getElementById("end_time").value;
+            let wittypiEnabled = document.getElementById("wittypi_enabled").checked;
+            let wittypiStartTime = document.getElementById("wittypi_start_time").value;
+            let wittypiEndTime = document.getElementById("wittypi_end_time").value;
+            let wittypiCycleMinutes = parseInt(document.getElementById("wittypi_cycle_minutes").value);
+            let wittypiTimezone = document.getElementById("wittypi_timezone").value;
+            let mountAssignmentEnabled = document.getElementById("mount_assignment_enabled").checked;
+
+            // Validate mount assignment
+            if (mountAssignmentEnabled) {
+                const bits = getMountBits();
+                if (bits === "111") {
+                    showResponseModal('failure', 'Error! At least one magnet location must be selected when mount assignment is enabled.');
+                    return;
+                }
+            }
 
             try {
+                const mountBits = mountAssignmentEnabled ? getMountBits() : "111"; // "111" = no mount assignment
                 const response = await fetch("{{ url_for('playlist.update_playlist', playlist_name='') }}" + oldName, {
                     method: "PUT",
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ new_name: newName, start_time: startTime, end_time: endTime })
+                    body: JSON.stringify({ 
+                        new_name: newName, 
+                        start_time: startTime, 
+                        end_time: endTime,
+                        wittypi_enabled: wittypiEnabled,
+                        wittypi_start_time: wittypiStartTime,
+                        wittypi_end_time: wittypiEndTime,
+                        wittypi_cycle_minutes: wittypiCycleMinutes,
+                        wittypi_timezone: wittypiTimezone,
+                        mount_bits: mountBits
+                    })
                 });
 
                 const result = await response.json();
@@ -195,19 +299,27 @@
         function populateTimeOptions() {
             let startSelect = document.getElementById("start_time");
             let endSelect = document.getElementById("end_time");
+            let wittypiStartSelect = document.getElementById("wittypi_start_time");
+            let wittypiEndSelect = document.getElementById("wittypi_end_time");
 
             startSelect.innerHTML = "";
             endSelect.innerHTML = "";
+            wittypiStartSelect.innerHTML = "";
+            wittypiEndSelect.innerHTML = "";
 
             for (let hour = 0; hour < 24; hour++) { // 24-hour format (0-23)
                 for (let minutes of [0, 15, 30, 45]) {
                     let time = hour.toString().padStart(2, '0') + ":" + minutes.toString().padStart(2, '0');
                     startSelect.innerHTML += `<option value="${time}">${time}</option>`;
                     endSelect.innerHTML += `<option value="${time}">${time}</option>`;
+                    wittypiStartSelect.innerHTML += `<option value="${time}">${time}</option>`;
+                    wittypiEndSelect.innerHTML += `<option value="${time}">${time}</option>`;
                 }
             }
             startSelect.innerHTML += `<option value="24:00">24:00</option>`;
             endSelect.innerHTML += `<option value="24:00">24:00</option>`;
+            wittypiStartSelect.innerHTML += `<option value="24:00">24:00</option>`;
+            wittypiEndSelect.innerHTML += `<option value="24:00">24:00</option>`;
         }
 
         document.addEventListener("DOMContentLoaded", populateTimeOptions);
@@ -244,7 +356,7 @@
             <div class="playlist-item {% if playlist.name == playlist_config.active_playlist %}active{% endif %}">
                     <div class="playlist-header">
                         <span class="playlist-title">{{ playlist.name }}</span>
-                        <button class="edit-button" onclick="openEditModal('{{ playlist.name }}', '{{ playlist.start_time }}','{{ playlist.end_time }}')"><img src="{{ url_for('static', filename='icons/settings.png') }}" alt="edit playlist" class="action-icon"></button>
+                        <button class="edit-button" onclick="openEditModal('{{ playlist.name }}', '{{ playlist.start_time }}','{{ playlist.end_time }}', {{ playlist.wittypi_enabled|lower }}, '{{ playlist.wittypi_start_time }}', '{{ playlist.wittypi_end_time }}', {{ playlist.wittypi_cycle_minutes }}, '{{ playlist.wittypi_timezone }}')"><img src="{{ url_for('static', filename='icons/settings.png') }}" alt="edit playlist" class="action-icon"></button>
                     </div>
                     <!-- Plugin List -->
                     <div class="plugin-list">
@@ -300,11 +412,77 @@
                     <label for="playlist_name" class="form-label">Playlist Name:</label>
                     <input type="text" id="playlist_name" name="playlist_name" placeholder="Type something..." required class="form-input">
                 </div>
-                <div class="form-group">
+                <div id="display_time_container" class="form-group">
                     <label for="start_time" class="form-label">Display from </label>
-                    <select id="start_time" name="start_time" class="form-input"></select>
+                    <select id="start_time" name="start_time" class="form-input time-select"></select>
                     <span> - </span>
-                    <select id="end_time" name="end_time" class="form-input"></select>
+                    <select id="end_time" name="end_time" class="form-input time-select"></select>
+                </div>
+                
+                <!-- Witty Pi Settings -->
+                <div class="separator"></div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="wittypi_enabled" name="wittypi_enabled" onchange="updateWittyPiFieldsVisibility()">
+                        <span>Enable Witty Pi Power Cycling</span>
+                    </label>
+                </div>
+                
+                <div id="wittypi_fields_container" class="hidden">
+                    <div class="form-group">
+                        <label for="wittypi_start_time" class="form-label">Power On from </label>
+                        <select id="wittypi_start_time" name="wittypi_start_time" class="form-input time-select"></select>
+                        <span> - </span>
+                        <select id="wittypi_end_time" name="wittypi_end_time" class="form-input time-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="wittypi_cycle_minutes" class="form-label">Cycle Interval (minutes):</label>
+                        <input type="number" id="wittypi_cycle_minutes" name="wittypi_cycle_minutes" min="15" max="1440" value="60" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="wittypi_timezone" class="form-label">Timezone:</label>
+                        <select id="wittypi_timezone" name="wittypi_timezone" class="form-input">
+                            <option value="UTC">UTC</option>
+                            <option value="US/Eastern">US/Eastern</option>
+                            <option value="US/Central">US/Central</option>
+                            <option value="US/Mountain">US/Mountain</option>
+                            <option value="US/Pacific">US/Pacific</option>
+                            <option value="Europe/London">Europe/London</option>
+                            <option value="Europe/Paris">Europe/Paris</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo</option>
+                            <option value="Australia/Sydney">Australia/Sydney</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Mount Selector: 3 reed switches mapped to MCP23017 GPIO A0, A1, A2 (left→right) -->
+                <div class="separator"></div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="mount_assignment_enabled" name="mount_assignment_enabled" onchange="updateMountSelectorVisibility()">
+                        <span>Assign this playlist to mount</span>
+                    </label>
+                </div>
+                
+                <div id="mount_selector_container" class="hidden">
+                    <div class="form-group">
+                        <label class="form-label">Magnet Locations (select at least one):</label>
+                        <div class="radio-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="mount_a0" name="mount_a0">
+                                <span>GPIO A0 — magnet present</span>
+                            </label>
+                            <label class="form-label">
+                                <input type="checkbox" id="mount_a1" name="mount_a1">
+                                <span>GPIO A1 — magnet present</span>
+                            </label>
+                            <label class="form-label">
+                                <input type="checkbox" id="mount_a2" name="mount_a2">
+                                <span>GPIO A2 — magnet present</span>
+                            </label>
+                            <div class="form-help">Left→right order is A0, A1, A2. Checked = magnet present. Saves bits in A0A1A2 order.</div>
+                        </div>
+                    </div>
                 </div>
             </form>
             <div class="buttons-container">
@@ -316,5 +494,31 @@
 
     <!-- Success/Error Modal -->
     {% include 'response_modal.html' %}
+
+    <script>
+        // Helpers to map bits<->UI and lookup existing mapping
+        function getBitsForPlaylist(name) {
+            // STATE_TO_PLAYLIST maps bits->playlist; invert lookup
+            for (const [bits, pl] of Object.entries(STATE_TO_PLAYLIST)) {
+                if (pl === name) return bits;
+            }
+            return "";
+        }
+
+        function setMountSelector(bits) {
+            // bits like "010"; index 0=A0,1=A1,2=A2; '0' => checked
+            const b = (bits && bits.length === 3) ? bits : "111"; // default all open
+            document.getElementById("mount_a0").checked = (b[0] === "0");
+            document.getElementById("mount_a1").checked = (b[1] === "0");
+            document.getElementById("mount_a2").checked = (b[2] === "0");
+        }
+
+        function getMountBits() {
+            const a0 = document.getElementById("mount_a0").checked ? "0" : "1";
+            const a1 = document.getElementById("mount_a1").checked ? "0" : "1";
+            const a2 = document.getElementById("mount_a2").checked ? "0" : "1";
+            return a0 + a1 + a2;
+        }
+    </script>
 </body>
 </html>

@@ -19,17 +19,79 @@ class Config:
     # Directory path for storing plugin instance images
     plugin_image_dir = os.path.join(BASE_DIR, "static", "images", "plugins")
 
+    @staticmethod
+    def default_config():
+        """Return the baseline device configuration for missing keys."""
+        return {
+            "name": "InkyPi",
+            "display_type": "inky",
+            "resolution": [800, 480],
+            "orientation": "horizontal",
+            "startup": True,
+            "plugin_cycle_interval_seconds": 3600,
+            "timezone": "America/New_York",
+            "time_format": "12h",
+            "inverted_image": False,
+            "log_system_stats": False,
+            "image_settings": {
+                "saturation": 1.0,
+                "brightness": 1.0,
+                "sharpness": 1.0,
+                "contrast": 1.0
+            },
+            "playlist_config": {
+                "playlists": [],
+                "active_playlist": None
+            },
+            "refresh_info": {
+                "refresh_time": None,
+                "image_hash": None,
+                "refresh_type": None,
+                "plugin_id": None
+            },
+            "mount_startup_playlists": {
+                "enabled": False,
+                "state_to_playlist": {}
+            }
+        }
+
     def __init__(self):
         self.config = self.read_config()
         self.plugins_list = self.read_plugins_list()
         self.playlist_manager = self.load_playlist_manager()
         self.refresh_info = self.load_refresh_info()
 
+    @classmethod
+    def _merge_defaults(cls, defaults, config):
+        """Recursively merge config values over defaults."""
+        if not isinstance(config, dict):
+            return defaults
+
+        merged = {}
+        for key, default_value in defaults.items():
+            value = config.get(key)
+            if isinstance(default_value, dict):
+                merged[key] = cls._merge_defaults(default_value, value if isinstance(value, dict) else {})
+            else:
+                merged[key] = default_value if value is None else value
+
+        for key, value in config.items():
+            if key not in merged:
+                merged[key] = value
+
+        return merged
+
     def read_config(self):
         """Reads the device config JSON file and returns it as a dictionary."""
         logger.debug(f"Reading device config from {self.config_file}")
-        with open(self.config_file) as f:
-            config = json.load(f)
+        try:
+            with open(self.config_file) as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            logger.warning(f"Failed to read config file: {e}. Using empty config.")
+            config = {}
+
+        config = self._merge_defaults(self.default_config(), config)
 
         logger.debug("Loaded config:\n%s", json.dumps(config, indent=3))
 
@@ -57,10 +119,14 @@ class Config:
         logger.debug(f"Writing device config to {self.config_file}")
         self.update_value("playlist_config", self.playlist_manager.to_dict())
         self.update_value("refresh_info", self.refresh_info.to_dict())
-        with open(self.config_file, 'w') as outfile:
+        tmp_file = self.config_file + ".tmp"
+        with open(tmp_file, 'w') as outfile:
             json.dump(self.config, outfile, indent=4)
+            outfile.flush()
+            os.fsync(outfile.fileno())
+        os.replace(tmp_file, self.config_file)
 
-    def get_config(self, key=None, default={}):
+    def get_config(self, key=None, default=None):
         """Gets the value of a specific configuration key or returns the entire config if none provided."""
         if key is not None:
             return self.config.get(key, default)

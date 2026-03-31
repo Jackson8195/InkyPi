@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app, render_template
 from utils.time_utils import calculate_seconds
+from utils.wittypi_schedule import WittyPiScheduleGenerator
+from utils.mount_detection import is_valid_mount_assignment
 import json
 from datetime import datetime, timedelta
 import os
@@ -72,11 +74,13 @@ def playlists():
     device_config = current_app.config['DEVICE_CONFIG']
     playlist_manager = device_config.get_playlist_manager()
     refresh_info = device_config.get_refresh_info()
+    mount_selector_config = device_config.get_config("mount_startup_playlists", default={})
 
     return render_template(
         'playlist.html',
         playlist_config=playlist_manager.to_dict(),
-        refresh_info=refresh_info.to_dict()
+        refresh_info=refresh_info.to_dict(),
+        mount_selector_config=mount_selector_config
     )
 
 @playlist_bp.route('/create_playlist', methods=['POST'])
@@ -99,12 +103,42 @@ def create_playlist():
         if playlist:
             return jsonify({"error": f"Playlist with name '{playlist_name}' already exists"}), 400
 
-        result = playlist_manager.add_playlist(playlist_name, start_time, end_time)
+        # Extract Witty Pi settings
+        wittypi_enabled = data.get("wittypi_enabled", False)
+        wittypi_start_time = data.get("wittypi_start_time", start_time)
+        wittypi_end_time = data.get("wittypi_end_time", end_time)
+        wittypi_cycle_minutes = data.get("wittypi_cycle_minutes", 60)
+        wittypi_timezone = data.get("wittypi_timezone", "UTC")
+
+        result = playlist_manager.add_playlist(
+            playlist_name, start_time, end_time,
+            wittypi_enabled=wittypi_enabled,
+            wittypi_start_time=wittypi_start_time,
+            wittypi_end_time=wittypi_end_time,
+            wittypi_cycle_minutes=int(wittypi_cycle_minutes),
+            wittypi_timezone=wittypi_timezone
+        )
         if not result:
             return jsonify({"error": "Failed to create playlist"}), 500
 
+        # Optional: assign this playlist to a mount state based on 3 reed switches
+        # Only add to mapping if state_bits is a valid mount assignment (not "111" = all open)
+        mount_bits = data.get("mount_bits")
+        if is_valid_mount_assignment(mount_bits):
+            cfg = device_config.get_config("mount_startup_playlists", default={})
+            # Initialize if missing
+            if not cfg:
+                cfg = {"enabled": True, "state_to_playlist": {}}
+            elif "state_to_playlist" not in cfg:
+                cfg["state_to_playlist"] = {}
+            cfg["state_to_playlist"][mount_bits] = playlist_name
+            device_config.update_value("mount_startup_playlists", cfg, write=True)
+
         # save changes to device config file
         device_config.write_config()
+        
+        # Generate Witty Pi schedule if enabled
+        WittyPiScheduleGenerator.generate_for_playlist(wittypi_enabled, wittypi_start_time, wittypi_end_time, wittypi_cycle_minutes, wittypi_timezone)
 
     except Exception as e:
         logger.exception("EXCEPTION CAUGHT: " + str(e))
@@ -130,10 +164,54 @@ def update_playlist(playlist_name):
     if not playlist:
         return jsonify({"error": f"Playlist '{playlist_name}' does not exist"}), 400
 
-    result = playlist_manager.update_playlist(playlist_name, new_name, start_time, end_time)
+    # Extract Witty Pi settings
+    wittypi_enabled = data.get("wittypi_enabled")
+    wittypi_start_time = data.get("wittypi_start_time")
+    wittypi_end_time = data.get("wittypi_end_time")
+    wittypi_cycle_minutes = data.get("wittypi_cycle_minutes")
+    wittypi_timezone = data.get("wittypi_timezone")
+
+    # Convert cycle minutes to int if present
+    if wittypi_cycle_minutes is not None:
+        wittypi_cycle_minutes = int(wittypi_cycle_minutes)
+
+    result = playlist_manager.update_playlist(
+        playlist_name, new_name, start_time, end_time,
+        wittypi_enabled=wittypi_enabled,
+        wittypi_start_time=wittypi_start_time,
+        wittypi_end_time=wittypi_end_time,
+        wittypi_cycle_minutes=wittypi_cycle_minutes,
+        wittypi_timezone=wittypi_timezone
+    )
     if not result:
-        return jsonify({"error": "Failed to delete playlist"}), 500
+        return jsonify({"error": "Failed to update playlist"}), 500
+    
+    # Optional: update mount mapping for this playlist
+    # Only add to mapping if state_bits is a valid mount assignment (not "111" = all open)
+    mount_bits = data.get("mount_bits")
+    cfg = device_config.get_config("mount_startup_playlists", default={})
+    if not cfg:
+        cfg = {"enabled": True, "state_to_playlist": {}}
+    elif "state_to_playlist" not in cfg:
+        cfg["state_to_playlist"] = {}
+    
+    # Remove any previous mapping pointing to the old playlist name
+    try:
+        for key, val in list(cfg["state_to_playlist"].items()):
+            if val == playlist_name:
+                del cfg["state_to_playlist"][key]
+    except Exception:
+        pass
+    
+    # Add new mapping only if state_bits is a valid mount assignment
+    if is_valid_mount_assignment(mount_bits):
+        cfg["state_to_playlist"][mount_bits] = new_name
+    
+    device_config.update_value("mount_startup_playlists", cfg, write=True)
     device_config.write_config()
+    
+    # Generate Witty Pi schedule if enabled
+    WittyPiScheduleGenerator.generate_for_playlist(wittypi_enabled, wittypi_start_time, wittypi_end_time, wittypi_cycle_minutes, wittypi_timezone)
 
     return jsonify({"success": True, "message": f"Updated playlist '{playlist_name}'!"})
 

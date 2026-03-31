@@ -3,10 +3,27 @@
 {% block content %}
 <div id="units-container" data-units="{{ units }}"></div>
 
-
 <div class="weather-dashboard">
   {% if plugin_settings.displayRefreshTime == "true" %}
-  <div class="last-refresh">Last refresh: {{ last_refresh_time }}</div>
+  <div class="meta-block">
+    <div class="last-refresh">Last refresh: {{ last_refresh_time }}<br>Next bootup: {% if next_bootup_time %}{{ next_bootup_time }}{% else %}Not set, running normally{% endif %}</div>
+    <div class="system-info">
+      <div class="battery-meter">
+        <div class="battery-bar">
+          {% set segments = 8 %}
+          {% set filled = ((battery_percent|default(0) / 100.0) * segments) | round(0, 'floor') | int %}
+          {% for i in range(1, segments + 1) %}
+            <div class="battery-seg {% if i <= filled %}filled{% endif %}"></div>
+          {% endfor %}
+        </div>
+        <div class="battery-label">
+          {{ battery_percent|default("–") }}% ({{ battery_voltage|default("–") }} V)
+        </div>
+      </div>
+      <div>Total pi uptime: {{ total_uptime }}</div>
+      <div>Since last charge: {{ battery_uptime }}</div>
+    </div>
+  </div>
   {% endif %}
   <!-- Current Date -->
   <div class="header">

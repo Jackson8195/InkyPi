@@ -11,6 +11,9 @@ logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'config', 'log
 import warnings
 warnings.filterwarnings("ignore", message=".*Busy Wait: Held high.*")
 
+import time
+from refresh_task import PlaylistRefresh
+from plugins.plugin_registry import load_plugins, get_plugin_instance
 import os
 import random
 import time
@@ -19,8 +22,10 @@ import json
 import logging
 import threading
 import argparse
+import subprocess
 from utils.app_utils import generate_startup_image
 from flask import Flask, request
+from startup_manager import StartupManager
 from werkzeug.serving import is_running_from_reloader
 from config import Config
 from display.display_manager import DisplayManager
@@ -86,6 +91,10 @@ if __name__ == '__main__':
 
     # start the background refresh task
     refresh_task.start()
+
+    # Execute startup playlist logic (mount detection, playlist run, Witty Pi, shutdown)
+    startup_manager = StartupManager(device_config, refresh_task, logger)
+    startup_manager.execute()
 
     # display default inkypi image on startup
     if device_config.get_config("startup") is True:

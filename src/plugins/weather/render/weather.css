@@ -33,6 +33,7 @@
   text-align: right;
   font-weight: bold;
   padding: 0.3dvh 0.5dvw;
+  z-index: 10;
 }
 
 .weather-dashboard {
@@ -281,6 +282,80 @@
   text-align: center;
   position: relative;
   line-height: 140%;
+}
+
+.meta-block {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.meta-block .last-refresh,
+.meta-block .system-info,
+.meta-block .system-info div {
+  text-align: left;
+  margin: 0;
+}
+
+.system-info {
+  position: absolute;
+  top: 0.5vh;
+  left: 0.5dvw;
+  font-size: min(2dvh, 2vw);
+  font-weight: bold;
+  color: #333;
+  line-height: 1.4;
+  z-index: 10;
+}
+
+.battery-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.battery-label {
+  font-size: 1em;
+  color: #333;
+}
+
+.battery-bar {
+  display: flex;
+  gap: 2px;
+}
+
+.battery-seg {
+  width: 14px;
+  height: 10px;
+  border: 1px solid #444;
+  border-radius: 2px;
+  background: #f0f0f0;
+}
+
+/* Default: 1-2 segments filled = all red */
+.battery-seg.filled {
+  background: #f44336;
+}
+
+/* 3-4 segments filled = all orange */
+.battery-bar:has(.battery-seg:nth-child(3).filled) .battery-seg.filled,
+.battery-bar:has(.battery-seg:nth-child(4).filled) .battery-seg.filled {
+  background: #ff9800;
+}
+
+/* 5-6 segments filled = all yellow */
+.battery-bar:has(.battery-seg:nth-child(5).filled) .battery-seg.filled,
+.battery-bar:has(.battery-seg:nth-child(6).filled) .battery-seg.filled {
+  background: #cddc39;
+}
+
+/* 7-8 segments filled = all green */
+.battery-bar:has(.battery-seg:nth-child(7).filled) .battery-seg.filled,
+.battery-bar:has(.battery-seg:nth-child(8).filled) .battery-seg.filled {
+  background: #4caf50;
 }
 
 
