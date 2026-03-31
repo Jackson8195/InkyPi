@@ -111,7 +111,7 @@ class MountSelector:
 
     @classmethod
     def from_config(cls, config: Dict, logger: Optional[logging.Logger] = None) -> "MountSelector":
-        pins = config.get("pins") or []
+        pins = config.get("pins") or [0, 1, 2]
         reader = MCP23017SwitchReader(
             pins=pins,
             address=config.get("i2c_address", 0x20),
