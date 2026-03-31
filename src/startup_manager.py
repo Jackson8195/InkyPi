@@ -135,7 +135,7 @@ class StartupManager:
                 return {
                     "playlist_name": detection.playlist_name,
                     "wait_seconds": int(mount_selector_config.get("wait_seconds", 120)),
-                    "shutdown_after_refresh": bool(mount_selector_config.get("shutdown_after_refresh", False)),
+                    "shutdown_after_refresh": True,
                 }
         except MCP23017NotAvailable as exc:
             self.logger.warning("Mount selector disabled: %s", exc)
