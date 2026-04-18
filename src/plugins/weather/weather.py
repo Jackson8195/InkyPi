@@ -87,7 +87,6 @@ class Weather(BasePlugin):
         timezone = device_config.get_config("timezone", default="America/New_York")
         time_format = device_config.get_config("time_format", default="12h")
         tz = pytz.timezone(timezone)
-        display_tz = tz
 
         try:
             if weather_provider == "OpenWeatherMap":
@@ -101,7 +100,6 @@ class Weather(BasePlugin):
                 if settings.get('weatherTimeZone', 'locationTimeZone') == 'locationTimeZone':
                     logger.info("Using location timezone for OpenWeatherMap data.")
                     wtz = self.parse_timezone(weather_data)
-                    display_tz = wtz
                     template_params = self.parse_weather_data(weather_data, aqi_data, wtz, units, time_format)
                 else:
                     logger.info("Using configured timezone for OpenWeatherMap data.")
@@ -126,7 +124,7 @@ class Weather(BasePlugin):
         template_params["plugin_settings"] = settings
 
         # Add last refresh time
-        now = datetime.now(display_tz)
+        now = datetime.now(tz)
         if time_format == "24h":
             last_refresh_time = now.strftime("%Y-%m-%d %H:%M")
         else:
@@ -144,13 +142,6 @@ class Weather(BasePlugin):
 
         # Add next bootup time from Witty Pi schedule
         next_boot = witty_status['next_startup']
-        if next_boot and next_boot.tzinfo is None:
-            # Witty Pi log timestamps do not include timezone info; treat them as UTC
-            # and convert to the same display timezone used by the weather widget.
-            next_boot = pytz.utc.localize(next_boot).astimezone(display_tz)
-        elif next_boot:
-            next_boot = next_boot.astimezone(display_tz)
-
         if next_boot:
             if time_format == "24h":
                 template_params["next_bootup_time"] = next_boot.strftime("%H:%M")
