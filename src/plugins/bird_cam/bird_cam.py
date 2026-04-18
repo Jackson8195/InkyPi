@@ -1,12 +1,12 @@
 from plugins.base_plugin.base_plugin import BasePlugin
 from utils.uptime_tracker import get_total_runtime, get_battery_uptime, read_witty_status, vin_to_percent
-from PIL import Image
 import requests
 import logging
 import base64
-from io import BytesIO
 
 logger = logging.getLogger(__name__)
+
+THEMES = ['field_notes', 'night_watch', 'minimal']
 
 
 class BirdCam(BasePlugin):
@@ -14,6 +14,7 @@ class BirdCam(BasePlugin):
     def generate_settings_template(self):
         template_params = super().generate_settings_template()
         template_params['style_settings'] = True
+        template_params['themes'] = THEMES
         return template_params
 
     def generate_image(self, settings, device_config):
@@ -41,19 +42,6 @@ class BirdCam(BasePlugin):
             logger.error(f"Bird cam /api/stats failed: {e}")
             raise RuntimeError("Failed to fetch bird cam stats, please check logs.")
 
-        try:
-            counts_resp = requests.get(f"{base_url}/api/bird_counts_raw", timeout=5)
-            counts_resp.raise_for_status()
-            counts_raw = counts_resp.json()
-            top_visitors = sorted(
-                [{"bird": k, "count": v} for k, v in counts_raw.items()],
-                key=lambda x: x["count"],
-                reverse=True
-            )[:5]
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Bird cam /api/bird_counts_raw failed: {e}")
-            top_visitors = []
-
         bird_filters = settings.get('bird_filter[]', [])
         if isinstance(bird_filters, str):
             bird_filters = [bird_filters] if bird_filters else []
@@ -80,9 +68,12 @@ class BirdCam(BasePlugin):
         witty_status = read_witty_status()
         vin = witty_status.get('vin')
 
+        theme = settings.get('theme', 'field_notes')
+        if theme not in THEMES:
+            theme = 'field_notes'
+
         template_params = {
             "stats": stats,
-            "top_visitors": top_visitors,
             "bird_name": latest_bird,
             "img_b64": img_b64,
             "filter_active": bool(bird_filters),
@@ -91,6 +82,7 @@ class BirdCam(BasePlugin):
             "battery_voltage": vin if vin else None,
             "total_uptime": get_total_runtime(),
             "battery_uptime": get_battery_uptime(),
+            "theme": theme,
             "plugin_settings": settings,
         }
 

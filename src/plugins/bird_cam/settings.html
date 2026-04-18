@@ -9,6 +9,15 @@
 </div>
 
 <div class="form-group">
+    <label for="theme" class="form-label">Theme</label>
+    <select id="theme" name="theme" class="form-input">
+        <option value="field_notes">Field Notes — warm parchment</option>
+        <option value="night_watch">Night Watch — dark navy</option>
+        <option value="minimal">Minimal — clean white</option>
+    </select>
+</div>
+
+<div class="form-group">
     <label class="form-label">Bird Filter</label>
     <div style="display: flex; flex-direction: column; gap: 8px;">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
@@ -91,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loadPluginSettings) {
         document.getElementById('host').value = pluginSettings.host || '';
         document.getElementById('port').value = pluginSettings.port || '5000';
+        document.getElementById('theme').value = pluginSettings.theme || 'field_notes';
 
         const filterMode = pluginSettings.filterMode || 'all';
         const radio = document.querySelector(`input[name="filterMode"][value="${filterMode}"]`);

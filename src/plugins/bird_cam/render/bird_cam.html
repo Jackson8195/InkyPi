@@ -1,12 +1,37 @@
 {% extends "plugin.html" %}
 
 {% block content %}
-<div class="bird-cam-layout">
+<div class="bird-cam-layout {{ theme }}">
 
-    <!-- Left panel: battery, bird info, top visitors -->
-    <div class="left-panel">
+    <!-- Bird photo: absolutely pinned to top-right corner -->
+    <div class="photo-frame">
+        {% if img_b64 %}
+            <img class="bird-photo" src="{{ img_b64 }}" alt="{{ bird_name or 'Bird' }}" />
+        {% else %}
+            <div class="no-photo">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="bird-silhouette">
+                    <ellipse cx="55" cy="55" rx="28" ry="20" fill="currentColor" opacity="0.25"/>
+                    <circle cx="78" cy="42" r="13" fill="currentColor" opacity="0.25"/>
+                    <polygon points="91,40 100,38 91,46" fill="currentColor" opacity="0.2"/>
+                    <line x1="55" y1="75" x2="48" y2="90" stroke="currentColor" stroke-width="3" opacity="0.2"/>
+                    <line x1="60" y1="75" x2="60" y2="90" stroke="currentColor" stroke-width="3" opacity="0.2"/>
+                    <path d="M 27,50 Q 15,35 30,25 Q 42,38 35,52 Z" fill="currentColor" opacity="0.25"/>
+                </svg>
+                <div class="no-photo-text">
+                    {% if filter_active and bird_filters %}
+                        No image of {{ bird_filters | join(' or ') }}
+                    {% else %}
+                        No image yet
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
 
-        <!-- Battery + uptime -->
+    <!-- Content: battery top-left, bird info + today's stats below -->
+    <div class="content-layer">
+
+        <!-- Battery + uptime (top-left) -->
         <div class="meta-block">
             <div class="battery-meter">
                 <div class="battery-bar">
@@ -16,72 +41,52 @@
                         <div class="battery-seg {% if i <= filled %}filled{% endif %}"></div>
                     {% endfor %}
                 </div>
-                <div class="battery-label">
-                    {{ battery_percent|default(0) }}%{% if battery_voltage %} ({{ battery_voltage }}V){% endif %}
-                </div>
+                <span class="battery-label">
+                    {{ battery_percent|default(0) }}%{% if battery_voltage %} · {{ battery_voltage }}V{% endif %}
+                </span>
             </div>
             <div class="uptime-line">Pi uptime: {{ total_uptime }}</div>
             <div class="uptime-line">Since charge: {{ battery_uptime }}</div>
         </div>
 
-        <!-- Current bird -->
+        <!-- Current bird name -->
         <div class="bird-info">
             {% if bird_name %}
                 <div class="bird-name">{{ bird_name }}</div>
-                {% if stats.last_detection %}
-                    <div class="bird-meta">Last seen: {{ stats.last_detection[11:16] }}</div>
-                {% endif %}
-                <div class="bird-meta">{{ stats.total_today }} sighting{{ 's' if stats.total_today != 1 else '' }} today</div>
             {% elif filter_active %}
-                <div class="bird-name no-bird">No recent<br>
-                {% if bird_filters %}{{ bird_filters | join(' / ') }}{% else %}bird{% endif %}
+                <div class="bird-name dim">
+                    No recent<br>{{ bird_filters | join(' / ') if bird_filters else 'bird' }}
                 </div>
             {% else %}
-                <div class="bird-name no-bird">No birds yet today</div>
+                <div class="bird-name dim">No birds yet today</div>
             {% endif %}
         </div>
 
-        <!-- Top visitors -->
-        <div class="visitors-block">
-            <div class="visitors-title">Top Visitors</div>
-            {% if top_visitors %}
-                {% for v in top_visitors %}
-                    <div class="visitor-row">
-                        <span class="visitor-rank">{{ loop.index }}.</span>
-                        <span class="visitor-name">{{ v.bird }}</span>
-                        <span class="visitor-count">{{ v.count }}</span>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <div class="visitor-row" style="color: #999;">No data</div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Right panel: bird photo -->
-    <div class="right-panel">
-        {% if img_b64 %}
-            <img class="bird-photo" src="{{ img_b64 }}" alt="{{ bird_name or 'Bird' }}" />
-        {% else %}
-            <div class="no-photo">
-                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="bird-silhouette">
-                    <ellipse cx="55" cy="55" rx="28" ry="20" fill="#ccc"/>
-                    <circle cx="78" cy="42" r="13" fill="#ccc"/>
-                    <polygon points="91,40 100,38 91,46" fill="#bbb"/>
-                    <line x1="55" y1="75" x2="48" y2="90" stroke="#bbb" stroke-width="3"/>
-                    <line x1="60" y1="75" x2="60" y2="90" stroke="#bbb" stroke-width="3"/>
-                    <path d="M 27,50 Q 15,35 30,25 Q 42,38 35,52 Z" fill="#ccc"/>
-                </svg>
-                <div class="no-photo-text">
-                    {% if filter_active and bird_filters %}
-                        No image of<br>{{ bird_filters | join(' or ') }}
-                    {% else %}
-                        No image available
-                    {% endif %}
-                </div>
+        <!-- Today's stats -->
+        <div class="stats-block">
+            <div class="stats-title">Today</div>
+            <div class="stat-row">
+                <span class="stat-label">Sightings</span>
+                <span class="stat-value">{{ stats.total_today or 0 }}</span>
             </div>
-        {% endif %}
-    </div>
+            <div class="stat-row">
+                <span class="stat-label">Species</span>
+                <span class="stat-value">{{ stats.species_today or 0 }}</span>
+            </div>
+            {% if stats.most_frequent %}
+            <div class="stat-row">
+                <span class="stat-label">Most seen</span>
+                <span class="stat-value">{{ stats.most_frequent }} &times;{{ stats.most_frequent_count }}</span>
+            </div>
+            {% endif %}
+            {% if stats.last_detection %}
+            <div class="stat-row">
+                <span class="stat-label">Last seen</span>
+                <span class="stat-value">{{ stats.last_detection[11:16] }}</span>
+            </div>
+            {% endif %}
+        </div>
 
+    </div>
 </div>
 {% endblock %}
