@@ -3,25 +3,26 @@
 {% block content %}
 <div class="bird-cam-layout {{ theme }}">
 
-    <!-- Left column: battery/uptime, today's stats, top visitors -->
-    <div class="left-col">
-
-        <div class="meta-block">
-            <div class="battery-meter">
-                <div class="battery-bar">
-                    {% set segments = 8 %}
-                    {% set filled = ((battery_percent|default(0) / 100.0) * segments) | round(0, 'floor') | int %}
-                    {% for i in range(1, segments + 1) %}
-                        <div class="battery-seg {% if i <= filled %}filled{% endif %}"></div>
-                    {% endfor %}
-                </div>
-                <span class="battery-label">
-                    {{ battery_percent|default(0) }}%{% if battery_voltage %} - {{ battery_voltage }}V{% endif %}
-                </span>
+    <!-- Battery/uptime: absolutely pinned to top-left of display -->
+    <div class="meta-block">
+        <div class="battery-meter">
+            <div class="battery-bar">
+                {% set segments = 8 %}
+                {% set filled = ((battery_percent|default(0) / 100.0) * segments) | round(0, 'floor') | int %}
+                {% for i in range(1, segments + 1) %}
+                    <div class="battery-seg {% if i <= filled %}filled{% endif %}"></div>
+                {% endfor %}
             </div>
-            <div class="uptime-line">Pi uptime: {{ total_uptime }}</div>
-            <div class="uptime-line">Since charge: {{ battery_uptime }}</div>
+            <span class="battery-label">
+                {{ battery_percent|default(0) }}%{% if battery_voltage %} - {{ battery_voltage }}V{% endif %}
+            </span>
         </div>
+        <div class="uptime-line">Pi uptime: {{ total_uptime }}</div>
+        <div class="uptime-line">Since charge: {{ battery_uptime }}</div>
+    </div>
+
+    <!-- Left column: today's stats, top visitors -->
+    <div class="left-col">
 
         <div class="stats-block">
             <div class="stats-title">Today</div>
@@ -61,8 +62,10 @@
 
     </div>
 
-    <!-- Right column: bird name title, then photo -->
+    <!-- Right column: Last Visitor label, bird name title, photo, filename -->
     <div class="right-col">
+
+        <div class="last-visitor-label">Last Visitor:</div>
 
         <div class="bird-info">
             {% if bird_name %}
@@ -99,6 +102,10 @@
                 </div>
             {% endif %}
         </div>
+
+        {% if filename %}
+        <div class="image-filename">{{ filename }}</div>
+        {% endif %}
 
     </div>
 

@@ -66,6 +66,7 @@ class BirdCam(BasePlugin):
         latest_bird = None
         img_b64 = None
         img_bytes = None
+        filename = None
         try:
             params = [('birds[]', b) for b in bird_filters] if bird_filters else []
             latest_resp = requests.get(f"{base_url}/api/latest_image", params=params, timeout=5)
@@ -115,6 +116,7 @@ class BirdCam(BasePlugin):
             "battery_voltage": vin if vin else None,
             "total_uptime": get_total_runtime(),
             "battery_uptime": get_battery_uptime(),
+            "filename": filename,
             "top_birds": top_birds,
             "theme": theme,
             "plugin_settings": settings,

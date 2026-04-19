@@ -22,10 +22,10 @@ body {
     height: 100%;
 }
 
-/* ── Left column: battery/uptime, stats, top visitors ── */
+/* ── Left column: stats, top visitors ── */
 .left-col {
     width: 50%;
-    padding: 3% 3% 3% 4%;
+    padding: 14% 3% 3% 4%;
     display: flex;
     flex-direction: column;
     gap: 2%;
@@ -42,15 +42,19 @@ body {
     overflow: hidden;
 }
 
-/* ── Battery / uptime box ── */
+/* ── Battery / uptime: absolutely pinned to top-left of display ── */
 .meta-block {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    flex-shrink: 0;
-    border-radius: 5px;
-    padding: 5px 8px;
-    border: 1px solid currentColor;
+    border-radius: 0 0 5px 0;
+    padding: 5px 10px 6px 8px;
+    border-right: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
     opacity: 0.85;
 }
 
@@ -200,6 +204,26 @@ body {
     text-overflow: ellipsis;
 }
 
+/* ── Last Visitor label ── */
+.last-visitor-label {
+    font-size: 0.75em;
+    font-weight: 600;
+    color: #2e7d32;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+/* ── Image filename below photo ── */
+.image-filename {
+    font-size: 0.55em;
+    opacity: 0.45;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+
 /* ════════════════════════════════════════════════
    THEMES
    ════════════════════════════════════════════════ */
@@ -244,12 +268,15 @@ body {
 .field_notes .stat-row,
 .field_notes .battery-label,
 .field_notes .uptime-line,
-.field_notes .no-photo-text {
+.field_notes .no-photo-text,
+.field_notes .last-visitor-label,
+.field_notes .image-filename {
     font-family: 'Permanent Marker', cursive;
 }
 
 .field_notes .meta-block {
-    border: 1px dashed #7A5C3A;
+    border-right: 1px dashed #7A5C3A;
+    border-bottom: 1px dashed #7A5C3A;
     opacity: 1;
 }
 
