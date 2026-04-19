@@ -16,7 +16,7 @@
                     {% endfor %}
                 </div>
                 <span class="battery-label">
-                    {{ battery_percent|default(0) }}%{% if battery_voltage %} · {{ battery_voltage }}V{% endif %}
+                    {{ battery_percent|default(0) }}%{% if battery_voltage %} - {{ battery_voltage }}V{% endif %}
                 </span>
             </div>
             <div class="uptime-line">Pi uptime: {{ total_uptime }}</div>

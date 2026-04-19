@@ -261,7 +261,8 @@ body {
 .field_notes .stats-title {
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    opacity: 0.6;
+    opacity: 1;
+    color: #000000;
 }
 
 /* ── Night Watch: dark navy, crisp ── */
