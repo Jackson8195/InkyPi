@@ -50,6 +50,15 @@ class BirdCam(BasePlugin):
             logger.error(f"Bird cam /api/stats failed: {e}")
             raise RuntimeError("Failed to fetch bird cam stats, please check logs.")
 
+        top_birds = []
+        try:
+            counts_resp = requests.get(f"{base_url}/api/bird_counts_raw", timeout=5)
+            if counts_resp.status_code == 200:
+                counts = counts_resp.json()
+                top_birds = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Bird cam /api/bird_counts_raw failed: {e}")
+
         bird_filters = settings.get('bird_filter[]', [])
         if isinstance(bird_filters, str):
             bird_filters = [bird_filters] if bird_filters else []
@@ -104,6 +113,7 @@ class BirdCam(BasePlugin):
             "battery_voltage": vin if vin else None,
             "total_uptime": get_total_runtime(),
             "battery_uptime": get_battery_uptime(),
+            "top_birds": top_birds,
             "theme": theme,
             "plugin_settings": settings,
         }

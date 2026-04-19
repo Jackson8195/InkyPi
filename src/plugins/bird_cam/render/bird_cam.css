@@ -11,75 +11,43 @@ body {
     overflow: hidden;
 }
 
-/* ── Root layout container ── */
+/* ── Root: two-column flex layout ── */
 .bird-cam-layout {
-    position: relative;
-    width: 100%;
-    height: 100%;
-}
-
-/* ── Photo: absolutely pinned to top-right corner ── */
-.photo-frame {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 50%;
-    /* Square: match width with a height override via aspect-ratio */
-    aspect-ratio: 1 / 1;
-    overflow: hidden;
-    z-index: 1;
-}
-
-.bird-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-}
-
-/* No-photo placeholder */
-.no-photo {
-    width: 100%;
-    height: 100%;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8%;
+    width: 100%;
+    height: 100%;
 }
 
-.bird-silhouette {
-    width: 45%;
-    height: 45%;
-}
-
-.no-photo-text {
-    font-size: 0.9em;
-    text-align: center;
-    line-height: 1.4;
-    opacity: 0.45;
-}
-
-/* ── Content layer ── */
-/* Sits on top of the layout at full size; right side leaves room for the photo */
-.content-layer {
-    position: absolute;
-    inset: 0;
-    /* Right half of the top portion is occupied by the photo.
-       Pad the right side so text doesn't bleed under the image. */
-    padding: 3% 52% 3% 4%;
+/* ── Left column: battery/uptime, stats, top visitors ── */
+.left-col {
+    width: 50%;
+    padding: 3% 3% 3% 4%;
     display: flex;
     flex-direction: column;
     gap: 4%;
-    z-index: 2;
+    overflow: hidden;
 }
 
-/* ── Battery ── */
+/* ── Right column: bird name title + photo ── */
+.right-col {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    padding: 3% 3% 3% 2%;
+    gap: 2%;
+    overflow: hidden;
+}
+
+/* ── Battery / uptime box ── */
 .meta-block {
     display: flex;
     flex-direction: column;
     gap: 2px;
     flex-shrink: 0;
+    border-radius: 5px;
+    padding: 5px 8px;
+    border: 1px solid currentColor;
+    opacity: 0.85;
 }
 
 .battery-meter {
@@ -125,7 +93,7 @@ body {
     opacity: 0.6;
 }
 
-/* ── Bird name ── */
+/* ── Bird name (top of right column) ── */
 .bird-info { flex-shrink: 0; }
 
 .bird-name {
@@ -140,8 +108,53 @@ body {
     opacity: 0.45;
 }
 
+/* ── Photo (fills remaining right-column height) ── */
+.photo-frame {
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.bird-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* No-photo placeholder */
+.no-photo {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8%;
+}
+
+.bird-silhouette {
+    width: 45%;
+    height: 45%;
+}
+
+.no-photo-text {
+    font-size: 0.9em;
+    text-align: center;
+    line-height: 1.4;
+    opacity: 0.45;
+}
+
 /* ── Today's stats ── */
 .stats-block {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+/* ── Top visitors ── */
+.top-birds-block {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
@@ -168,13 +181,17 @@ body {
 
 .stat-label {
     opacity: 0.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70%;
 }
 
 .stat-value {
     font-weight: 600;
     text-align: right;
     white-space: nowrap;
-    max-width: 55%;
+    max-width: 40%;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -191,6 +208,11 @@ body {
 
 .field_notes .photo-frame {
     background-color: #E8E0CC;
+}
+
+.field_notes .meta-block {
+    border-color: #7A5C3A;
+    opacity: 1;
 }
 
 .field_notes .battery-seg {
@@ -215,6 +237,11 @@ body {
 
 .night_watch .photo-frame {
     background-color: #111C2A;
+}
+
+.night_watch .meta-block {
+    border-color: #4A6080;
+    opacity: 1;
 }
 
 .night_watch .battery-seg {
@@ -245,8 +272,11 @@ body {
 
 .minimal .photo-frame {
     background-color: #F0F0F0;
-    border-left: 1px solid #E0E0E0;
-    border-bottom: 1px solid #E0E0E0;
+}
+
+.minimal .meta-block {
+    border-color: #CCCCCC;
+    opacity: 1;
 }
 
 .minimal .battery-seg {

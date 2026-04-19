@@ -3,35 +3,9 @@
 {% block content %}
 <div class="bird-cam-layout {{ theme }}">
 
-    <!-- Bird photo: absolutely pinned to top-right corner -->
-    <div class="photo-frame">
-        {% if img_b64 %}
-            <img class="bird-photo" src="{{ img_b64 }}" alt="{{ bird_name or 'Bird' }}" />
-        {% else %}
-            <div class="no-photo">
-                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="bird-silhouette">
-                    <ellipse cx="55" cy="55" rx="28" ry="20" fill="currentColor" opacity="0.25"/>
-                    <circle cx="78" cy="42" r="13" fill="currentColor" opacity="0.25"/>
-                    <polygon points="91,40 100,38 91,46" fill="currentColor" opacity="0.2"/>
-                    <line x1="55" y1="75" x2="48" y2="90" stroke="currentColor" stroke-width="3" opacity="0.2"/>
-                    <line x1="60" y1="75" x2="60" y2="90" stroke="currentColor" stroke-width="3" opacity="0.2"/>
-                    <path d="M 27,50 Q 15,35 30,25 Q 42,38 35,52 Z" fill="currentColor" opacity="0.25"/>
-                </svg>
-                <div class="no-photo-text">
-                    {% if filter_active and bird_filters %}
-                        No image of {{ bird_filters | join(' or ') }}
-                    {% else %}
-                        No image yet
-                    {% endif %}
-                </div>
-            </div>
-        {% endif %}
-    </div>
+    <!-- Left column: battery/uptime, today's stats, top visitors -->
+    <div class="left-col">
 
-    <!-- Content: battery top-left, bird info + today's stats below -->
-    <div class="content-layer">
-
-        <!-- Battery + uptime (top-left) -->
         <div class="meta-block">
             <div class="battery-meter">
                 <div class="battery-bar">
@@ -49,20 +23,6 @@
             <div class="uptime-line">Since charge: {{ battery_uptime }}</div>
         </div>
 
-        <!-- Current bird name -->
-        <div class="bird-info">
-            {% if bird_name %}
-                <div class="bird-name">{{ bird_name }}</div>
-            {% elif filter_active %}
-                <div class="bird-name dim">
-                    No recent<br>{{ bird_filters | join(' / ') if bird_filters else 'bird' }}
-                </div>
-            {% else %}
-                <div class="bird-name dim">No birds yet today</div>
-            {% endif %}
-        </div>
-
-        <!-- Today's stats -->
         <div class="stats-block">
             <div class="stats-title">Today</div>
             <div class="stat-row">
@@ -87,6 +47,60 @@
             {% endif %}
         </div>
 
+        {% if top_birds %}
+        <div class="top-birds-block">
+            <div class="stats-title">Top Visitors</div>
+            {% for name, count in top_birds %}
+            <div class="stat-row">
+                <span class="stat-label">{{ name }}</span>
+                <span class="stat-value">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
     </div>
+
+    <!-- Right column: bird name title, then photo -->
+    <div class="right-col">
+
+        <div class="bird-info">
+            {% if bird_name %}
+                <div class="bird-name">{{ bird_name }}</div>
+            {% elif filter_active %}
+                <div class="bird-name dim">
+                    No recent<br>{{ bird_filters | join(' / ') if bird_filters else 'bird' }}
+                </div>
+            {% else %}
+                <div class="bird-name dim">No birds yet today</div>
+            {% endif %}
+        </div>
+
+        <div class="photo-frame">
+            {% if img_b64 %}
+                <img class="bird-photo" src="{{ img_b64 }}" alt="{{ bird_name or 'Bird' }}" />
+            {% else %}
+                <div class="no-photo">
+                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="bird-silhouette">
+                        <ellipse cx="55" cy="55" rx="28" ry="20" fill="currentColor" opacity="0.25"/>
+                        <circle cx="78" cy="42" r="13" fill="currentColor" opacity="0.25"/>
+                        <polygon points="91,40 100,38 91,46" fill="currentColor" opacity="0.2"/>
+                        <line x1="55" y1="75" x2="48" y2="90" stroke="currentColor" stroke-width="3" opacity="0.2"/>
+                        <line x1="60" y1="75" x2="60" y2="90" stroke="currentColor" stroke-width="3" opacity="0.2"/>
+                        <path d="M 27,50 Q 15,35 30,25 Q 42,38 35,52 Z" fill="currentColor" opacity="0.25"/>
+                    </svg>
+                    <div class="no-photo-text">
+                        {% if filter_active and bird_filters %}
+                            No image of {{ bird_filters | join(' or ') }}
+                        {% else %}
+                            No image yet
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+
 </div>
 {% endblock %}
