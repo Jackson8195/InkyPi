@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -200,18 +202,47 @@ body {
    THEMES
    ════════════════════════════════════════════════ */
 
-/* ── Field Notes: warm parchment, earthy ── */
+/* ── Field Notes: warm parchment, field journal ── */
 .field_notes {
     background-color: #F4EFE3;
     color: #2C1A0E;
 }
 
+/* Ruled notebook lines on the left column */
+.field_notes .left-col {
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent calc(1.55em - 1px),
+        rgba(44, 26, 14, 0.08) calc(1.55em - 1px),
+        rgba(44, 26, 14, 0.08) 1.55em
+    );
+    border-left: 2px solid rgba(180, 40, 40, 0.22);
+    padding-left: calc(4% + 6px);
+}
+
+/* Photo frame blends with parchment — no separate bg */
 .field_notes .photo-frame {
-    background-color: #E8E0CC;
+    background-color: transparent;
+}
+
+/* Bird image multiplied into parchment — white bg disappears */
+.field_notes .bird-photo {
+    mix-blend-mode: multiply;
+}
+
+/* Handwritten font for all field notes text */
+.field_notes .bird-name,
+.field_notes .stats-title,
+.field_notes .stat-row,
+.field_notes .battery-label,
+.field_notes .uptime-line,
+.field_notes .no-photo-text {
+    font-family: 'Permanent Marker', cursive;
 }
 
 .field_notes .meta-block {
-    border-color: #7A5C3A;
+    border: 1px dashed #7A5C3A;
     opacity: 1;
 }
 
@@ -223,10 +254,13 @@ body {
 .field_notes .stats-title {
     border-bottom: 1px solid #C8B89A;
     padding-bottom: 3px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.6;
 }
 
 .field_notes .stat-row + .stat-row {
-    border-top: 1px dotted #D4C4A8;
+    border-top: 1px solid rgba(44, 26, 14, 0.15);
 }
 
 /* ── Night Watch: dark navy, crisp ── */
