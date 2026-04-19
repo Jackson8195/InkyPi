@@ -59,8 +59,8 @@
         <label class="form-label" for="ai_prompt">AI Style Prompt</label>
         <textarea id="ai_prompt" name="ai_prompt" class="form-input"
             rows="4"
-            placeholder="e.g. Colored pencil style sketch without altering any details of the bird itself, with the bird drawn only. Crop out the background entirely."></textarea>
-        <small style="color: #888; font-size: 0.8em;">Describe how to transform the bird image. Applied via OpenAI image editing (requires OPEN_AI_SECRET).</small>
+            placeholder="e.g. Redraw only the {bird_name} in this image as a detailed colored pencil illustration. Preserve the exact pose, plumage, and proportions faithfully. Apply visible pencil strokes with natural shading. Remove everything else — feeder, background — leaving only the bird on a plain white background."></textarea>
+        <small style="color: #888; font-size: 0.8em;">Use <strong>{bird_name}</strong> anywhere in the prompt — it will be replaced with the detected species name at render time. Requires OPEN_AI_SECRET.</small>
     </div>
 </div>
 

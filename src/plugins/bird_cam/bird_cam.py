@@ -85,6 +85,8 @@ class BirdCam(BasePlugin):
 
         ai_enhance = settings.get('ai_enhance') == 'true'
         ai_prompt = settings.get('ai_prompt', '').strip()
+        if latest_bird and ai_prompt:
+            ai_prompt = ai_prompt.replace('{bird_name}', latest_bird)
         if ai_enhance and ai_prompt and img_bytes:
             api_key = device_config.load_env_key("OPEN_AI_SECRET")
             if api_key:
