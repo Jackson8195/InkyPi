@@ -99,7 +99,7 @@ body {
 .bird-info { flex-shrink: 0; }
 
 .bird-name {
-    font-size: 1.75em;
+    font-size: 2.1em;
     font-weight: 600;
     line-height: 1.2;
     word-break: break-word;
@@ -165,7 +165,7 @@ body {
 }
 
 .stats-title {
-    font-size: 0.82em;
+    font-size: 1em;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -177,7 +177,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    font-size: 0.97em;
+    font-size: 1.1em;
     line-height: 1.5;
 }
 
@@ -229,6 +229,11 @@ body {
 /* Bird image multiplied into parchment — white bg disappears */
 .field_notes .bird-photo {
     mix-blend-mode: multiply;
+}
+
+/* Center bird title over the image */
+.field_notes .bird-info {
+    text-align: center;
 }
 
 /* Handwritten font for all field notes text */
