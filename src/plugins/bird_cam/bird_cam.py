@@ -1,5 +1,8 @@
 from plugins.base_plugin.base_plugin import BasePlugin
 from utils.uptime_tracker import get_total_runtime, get_battery_uptime, read_witty_status, vin_to_percent
+from openai import OpenAI
+from PIL import Image
+from io import BytesIO
 import requests
 import logging
 import base64
@@ -15,6 +18,11 @@ class BirdCam(BasePlugin):
         template_params = super().generate_settings_template()
         template_params['style_settings'] = True
         template_params['themes'] = THEMES
+        template_params['api_key'] = {
+            "required": False,
+            "service": "OpenAI",
+            "expected_key": "OPEN_AI_SECRET"
+        }
         return template_params
 
     def generate_image(self, settings, device_config):
@@ -48,6 +56,7 @@ class BirdCam(BasePlugin):
 
         latest_bird = None
         img_b64 = None
+        img_bytes = None
         try:
             params = [('birds[]', b) for b in bird_filters] if bird_filters else []
             latest_resp = requests.get(f"{base_url}/api/latest_image", params=params, timeout=5)
@@ -64,6 +73,19 @@ class BirdCam(BasePlugin):
                         img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
         except requests.exceptions.RequestException as e:
             logger.error(f"Bird cam image fetch failed: {e}")
+
+        ai_enhance = settings.get('ai_enhance') == 'true'
+        ai_prompt = settings.get('ai_prompt', '').strip()
+        if ai_enhance and ai_prompt and img_bytes:
+            api_key = device_config.load_env_key("OPEN_AI_SECRET")
+            if api_key:
+                try:
+                    img_bytes = BirdCam.apply_ai_style(api_key, img_bytes, ai_prompt)
+                    img_b64 = f"data:image/png;base64,{base64.b64encode(img_bytes).decode()}"
+                except Exception as e:
+                    logger.error(f"AI image enhancement failed: {e}")
+            else:
+                logger.warning("AI enhancement enabled but OPEN_AI_SECRET not configured.")
 
         witty_status = read_witty_status()
         vin = witty_status.get('vin')
@@ -87,3 +109,19 @@ class BirdCam(BasePlugin):
         }
 
         return self.render_image(dimensions, "bird_cam.html", "bird_cam.css", template_params)
+
+    @staticmethod
+    def apply_ai_style(api_key, img_bytes, prompt):
+        client = OpenAI(api_key=api_key)
+        # Convert to RGBA PNG — required by the images.edit endpoint
+        img = Image.open(BytesIO(img_bytes)).convert("RGBA")
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        buf.name = "bird.png"
+        response = client.images.edit(
+            model="gpt-image-1",
+            image=buf,
+            prompt=prompt,
+        )
+        return base64.b64decode(response.data[0].b64_json)
