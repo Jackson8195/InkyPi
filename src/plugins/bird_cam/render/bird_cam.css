@@ -204,7 +204,7 @@ body {
 
 /* ── Field Notes: warm parchment, field journal ── */
 .field_notes {
-    background-color: #F4EFE3;
+    background-color: #EEE5C0;
     color: #2C1A0E;
 }
 
@@ -257,15 +257,9 @@ body {
 }
 
 .field_notes .stats-title {
-    border-bottom: 1px solid #C8B89A;
-    padding-bottom: 3px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     opacity: 0.6;
-}
-
-.field_notes .stat-row + .stat-row {
-    border-top: 1px solid rgba(44, 26, 14, 0.15);
 }
 
 /* ── Night Watch: dark navy, crisp ── */
