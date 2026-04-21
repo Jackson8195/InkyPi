@@ -53,6 +53,10 @@ def _remove_background(img_bytes):
     input_name = session.get_inputs()[0].name
     raw = session.run(None, {input_name: inp})[0]
     logger.info("BirdCam BG: ONNX inference complete")
+
+    # Free the session immediately to release model memory before Chromium render.
+    global _ort_session
+    _ort_session = None
     mask = raw[0, 0]
     mask = 1.0 / (1.0 + np.exp(-mask))  # sigmoid → [0, 1]
 
