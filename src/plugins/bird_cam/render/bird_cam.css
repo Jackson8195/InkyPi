@@ -252,14 +252,8 @@ body {
     padding-left: calc(4% + 6px);
 }
 
-/* Photo frame blends with parchment — no separate bg */
 .field_notes .photo-frame {
-    background-color: transparent;
-}
-
-/* White bg from AI output disappears on white page via multiply */
-.field_notes .bird-photo {
-    mix-blend-mode: multiply;
+    background-color: #FFFFFF;
 }
 
 /* Center bird title over the image */
