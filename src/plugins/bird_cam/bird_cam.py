@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 THEMES = ['field_notes', 'night_watch', 'minimal']
 
-_MAX_AI_INPUT_SIZE = (1024, 1024)
+_MAX_AI_INPUT_SIZE = (768, 768)
 
 
 def _resize_image_bytes(img_bytes, max_size, output_format=None, flatten_alpha=False, jpeg_quality=85):
@@ -174,20 +174,20 @@ class BirdCam(BasePlugin):
             f"If the bird is partially cut off at the frame edges, preserve that cutoff exactly — do not complete or invent missing parts. "
             f"Give a slight faded outline effect around the bird in black {style} to make it pop. "
         )
-        logger.info("BirdCam AI: sending request to Replicate flux-2-max prompt=%r", prompt)
+        logger.info("BirdCam AI: sending request to Replicate flux-2-pro prompt=%r", prompt)
         client = replicate.Client(api_token=api_key)
         output = client.run(
-            "black-forest-labs/flux-2-max",
+            "black-forest-labs/flux-2-pro",
             input={
                 "prompt": prompt,
                 "input_images": [buf],
                 "aspect_ratio": "match_input_image",
-                "resolution": "1 MP",
+                "resolution": "0.5 MP",
                 "output_format": "png",
                 "safety_tolerance": 2,
             },
         )
-        logger.info("BirdCam AI: Replicate flux-2-max completed")
+        logger.info("BirdCam AI: Replicate flux-2-pro completed")
         result_url = str(output[0]) if isinstance(output, list) else str(output)
         styled_resp = requests.get(result_url, timeout=60)
         styled_resp.raise_for_status()
