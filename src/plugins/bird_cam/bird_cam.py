@@ -174,10 +174,10 @@ class BirdCam(BasePlugin):
             f"If the bird is partially cut off at the frame edges, preserve that cutoff exactly — do not complete or invent missing parts. "
             f"Give a slight faded outline effect around the bird in black {style} to make it pop. "
         )
-        logger.info("BirdCam AI: sending request to Replicate flux-2-max prompt=%r", prompt)
+        logger.info("BirdCam AI: sending request to Replicate flux-kontext-max prompt=%r", prompt)
         client = replicate.Client(api_token=api_key)
         output = client.run(
-            "black-forest-labs/flux-2-max",
+            "black-forest-labs/flux-kontext-max",
             input={
                 "prompt": prompt,
                 "input_image": buf,
@@ -185,7 +185,7 @@ class BirdCam(BasePlugin):
                 "safety_tolerance": 2,
             },
         )
-        logger.info("BirdCam AI: Replicate flux-2-max completed")
+        logger.info("BirdCam AI: Replicate flux-kontext-max completed")
         result_url = str(output[0]) if isinstance(output, list) else str(output)
         styled_resp = requests.get(result_url, timeout=60)
         styled_resp.raise_for_status()
