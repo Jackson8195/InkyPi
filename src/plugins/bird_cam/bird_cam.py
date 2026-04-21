@@ -48,11 +48,6 @@ class BirdCam(BasePlugin):
         template_params = super().generate_settings_template()
         template_params['style_settings'] = True
         template_params['themes'] = THEMES
-        template_params['api_key'] = {
-            "required": False,
-            "service": "Replicate",
-            "expected_key": "REPLICATE_API_TOKEN"
-        }
         return template_params
 
     def generate_image(self, settings, device_config):
