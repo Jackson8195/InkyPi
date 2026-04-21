@@ -174,9 +174,8 @@ class BirdCam(BasePlugin):
         prompt = (
             f"Portrait wildlife illustration of only the {bird_name or 'bird'} in this photo. "
             f"Completely discard the original background — remove all feeders, wood, glass, "
-            f"buildings, and surroundings entirely. "
-            f"Place the bird alone against a dark radial vignette: deep charcoal gray at the "
-            f"outer edges fading to a soft warm neutral glow directly behind the bird. "
+            f"and surroundings entirely. "
+            f"Place the bird on a plain pure white background with no gradients, shadows, or texture. "
             f"Render the bird in detailed {style} style with individual feather strands, "
             f"accurate plumage colors, and lifelike markings. "
             f"Close portrait composition — the bird filling most of the frame. "
