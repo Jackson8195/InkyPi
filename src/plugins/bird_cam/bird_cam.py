@@ -100,7 +100,7 @@ class BirdCam(BasePlugin):
         filename = None
         try:
             params = [('birds[]', b) for b in bird_filters] if bird_filters else []
-            latest_resp = requests.get(f"{base_url}/api/latest_image", params=params, timeout=5)
+            latest_resp = requests.get(f"{base_url}/api/best_image", params=params, timeout=5)
             if latest_resp.status_code == 200:
                 latest_data = latest_resp.json()
                 filename = latest_data.get('filename')
