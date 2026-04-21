@@ -181,6 +181,7 @@ class BirdCam(BasePlugin):
                 "prompt": prompt,
                 "input_image": buf,
                 "output_format": "png",
+                "safety_tolerance": 2,
             },
         )
         logger.info("BirdCam AI: Replicate flux-2-max completed")
