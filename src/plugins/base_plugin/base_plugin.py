@@ -9,6 +9,8 @@ import base64
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_RENDER_TIMEOUT_MS = 40000
+
 STATIC_DIR = resolve_path("static")
 PLUGINS_DIR = resolve_path("plugins")
 BASE_PLUGIN_DIR =  os.path.join(PLUGINS_DIR, "base_plugin")
@@ -86,4 +88,4 @@ class BasePlugin:
         template = self.env.get_template(html_file)
         rendered_html = template.render(template_params)
 
-        return take_screenshot_html(rendered_html, dimensions)
+        return take_screenshot_html(rendered_html, dimensions, timeout_ms=DEFAULT_RENDER_TIMEOUT_MS)

@@ -9,6 +9,8 @@ import requests
 import logging
 import base64
 import os
+import re
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +18,9 @@ THEMES = ['field_notes', 'night_watch', 'minimal']
 
 _U2NETP_URL = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx"
 _U2NETP_PATH = os.path.expanduser("~/.u2net/u2netp.onnx")
+_BG_REMOVED_DEBUG_DIR = "/tmp/birdcam_bg_removed"
 _ort_session = None
+_MAX_AI_INPUT_SIZE = (1024, 1024)
 
 
 def _get_ort_session():
@@ -57,6 +61,50 @@ def _remove_background(img_bytes):
     buf = BytesIO()
     img_rgba.save(buf, format="PNG")
     return buf.getvalue()
+
+
+def _resize_image_bytes(img_bytes, max_size, output_format=None, flatten_alpha=False, jpeg_quality=85):
+    with Image.open(BytesIO(img_bytes)) as img:
+        image = img.copy()
+
+    if image.mode not in ("RGB", "RGBA"):
+        image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+
+    image.thumbnail(max_size, Image.LANCZOS)
+
+    if flatten_alpha and "A" in image.getbands():
+        flattened = Image.new("RGB", image.size, "white")
+        flattened.paste(image, mask=image.getchannel("A"))
+        image = flattened
+    elif image.mode == "RGBA" and output_format != "PNG":
+        image = image.convert("RGB")
+
+    image_format = output_format or ("PNG" if "A" in image.getbands() else "JPEG")
+    mime = "image/png" if image_format == "PNG" else "image/jpeg"
+
+    buffer = BytesIO()
+    save_kwargs = {"format": image_format}
+    if image_format == "JPEG":
+        save_kwargs.update({"quality": jpeg_quality, "subsampling": 0})
+    image.save(buffer, **save_kwargs)
+    return buffer.getvalue(), mime
+
+
+def _save_bg_removed_preview(img_bytes, filename=None, bird_name=None):
+    os.makedirs(_BG_REMOVED_DEBUG_DIR, exist_ok=True)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    if filename:
+        base_name = os.path.splitext(os.path.basename(filename))[0]
+        safe_name = re.sub(r"[^a-zA-Z0-9._-]+", "_", base_name).strip("._") or "bird"
+        output_name = f"{safe_name}_{timestamp}.png"
+    else:
+        safe_name = re.sub(r"[^a-z0-9_-]+", "_", (bird_name or "bird").strip().lower()).strip("_") or "bird"
+        output_name = f"{timestamp}_{safe_name}.png"
+    file_path = os.path.join(_BG_REMOVED_DEBUG_DIR, output_name)
+    with open(file_path, "wb") as preview_file:
+        preview_file.write(img_bytes)
+    logger.info("Saved background-removed bird preview to %s", file_path)
+    return file_path
 
 
 class BirdCam(BasePlugin):
@@ -125,8 +173,7 @@ class BirdCam(BasePlugin):
                     img_resp = requests.get(f"{base_url}/images/{filename}", timeout=10)
                     if img_resp.status_code == 200:
                         img_bytes = img_resp.content
-                        ext = filename.rsplit('.', 1)[-1].lower()
-                        mime = 'image/jpeg' if ext in ('jpg', 'jpeg') else 'image/png'
+                        img_bytes, mime = _resize_image_bytes(img_bytes, dimensions)
                         img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
         except requests.exceptions.RequestException as e:
             logger.error(f"Bird cam image fetch failed: {e}")
@@ -137,8 +184,17 @@ class BirdCam(BasePlugin):
             api_key = device_config.load_env_key("OPEN_AI_SECRET")
             if api_key:
                 try:
-                    img_bytes = BirdCam.apply_ai_style(api_key, img_bytes, ai_style, bird_name=latest_bird)
-                    img_b64 = f"data:image/png;base64,{base64.b64encode(img_bytes).decode()}"
+                    started_at = time.monotonic()
+                    img_bytes, mime = BirdCam.apply_ai_style(
+                        api_key,
+                        img_bytes,
+                        ai_style,
+                        bird_name=latest_bird,
+                        output_size=dimensions,
+                        source_filename=filename,
+                    )
+                    logger.info("Bird cam AI styling completed in %.2fs", time.monotonic() - started_at)
+                    img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
                 except Exception as e:
                     logger.error(f"AI image enhancement failed: {e}")
             else:
@@ -170,10 +226,12 @@ class BirdCam(BasePlugin):
         return self.render_image(dimensions, "bird_cam.html", "bird_cam.css", template_params)
 
     @staticmethod
-    def apply_ai_style(api_key, img_bytes, style, bird_name=None):
+    def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None, source_filename=None):
         client = OpenAI(api_key=api_key)
 
-        isolated = _remove_background(img_bytes)
+        prepared_bytes, _ = _resize_image_bytes(img_bytes, _MAX_AI_INPUT_SIZE, output_format="PNG")
+        isolated = _remove_background(prepared_bytes)
+        _save_bg_removed_preview(isolated, filename=source_filename, bird_name=bird_name)
 
         buf = BytesIO(isolated)
         buf.name = "bird.png"
@@ -183,4 +241,7 @@ class BirdCam(BasePlugin):
             image=buf,
             prompt=prompt,
         )
-        return base64.b64decode(response.data[0].b64_json)
+        styled_bytes = base64.b64decode(response.data[0].b64_json)
+        if output_size:
+            return _resize_image_bytes(styled_bytes, output_size, output_format="JPEG", flatten_alpha=True)
+        return _resize_image_bytes(styled_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", flatten_alpha=True)

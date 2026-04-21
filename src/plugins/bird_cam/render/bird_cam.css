@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
-
 * {
     box-sizing: border-box;
     margin: 0;
@@ -276,7 +274,7 @@ body {
 .field_notes .no-photo-text,
 .field_notes .last-visitor-label,
 .field_notes .image-filename {
-    font-family: 'Permanent Marker', cursive;
+    font-family: 'Napoli', 'Jost', sans-serif;
 }
 
 .field_notes .meta-block {
