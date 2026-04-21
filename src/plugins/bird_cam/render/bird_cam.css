@@ -257,6 +257,11 @@ body {
     background-color: transparent;
 }
 
+/* White bg from AI output disappears on white page via multiply */
+.field_notes .bird-photo {
+    mix-blend-mode: multiply;
+}
+
 /* Center bird title over the image */
 .field_notes .bird-info {
     text-align: center;
@@ -276,7 +281,7 @@ body {
 
 /* Dash before each stat line item */
 .field_notes .stat-label::before {
-    content: "– ";
+    content: "- ";
 }
 
 .field_notes .meta-block {
