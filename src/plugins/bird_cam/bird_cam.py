@@ -172,10 +172,15 @@ class BirdCam(BasePlugin):
         buf = BytesIO(prepared_bytes)
         buf.name = "bird.png"
         prompt = (
-            f"Redraw this entire image as a detailed {style} illustration. "
-            f"Preserve the exact {bird_name or 'bird'} pose, colors, and markings faithfully. "
-            f"Replace the background with a dark vignette gradient. "
-            f"Visible {style} strokes throughout."
+            f"Portrait wildlife illustration of only the {bird_name or 'bird'} in this photo. "
+            f"Completely discard the original background — remove all feeders, wood, glass, "
+            f"buildings, and surroundings entirely. "
+            f"Place the bird alone against a dark radial vignette: deep charcoal gray at the "
+            f"outer edges fading to a soft warm neutral glow directly behind the bird. "
+            f"Render the bird in detailed {style} style with individual feather strands, "
+            f"accurate plumage colors, and lifelike markings. "
+            f"Close portrait composition — the bird filling most of the frame. "
+            f"No original background elements should remain."
         )
         logger.info("BirdCam AI: sending request to OpenAI prompt=%r", prompt)
         response = client.images.edit(
