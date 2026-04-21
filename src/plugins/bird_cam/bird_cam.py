@@ -97,6 +97,7 @@ class BirdCam(BasePlugin):
         latest_bird = None
         img_b64 = None
         img_bytes = None
+        img_bytes_raw = None
         filename = None
         try:
             params = [('birds[]', b) for b in bird_filters] if bird_filters else []
@@ -109,20 +110,20 @@ class BirdCam(BasePlugin):
                 if filename:
                     img_resp = requests.get(f"{base_url}/images/{filename}", timeout=10)
                     if img_resp.status_code == 200:
-                        img_bytes = img_resp.content
-                        img_bytes, mime = _resize_image_bytes(img_bytes, dimensions)
+                        img_bytes_raw = img_resp.content
+                        img_bytes, mime = _resize_image_bytes(img_bytes_raw, dimensions)
                         img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
         except requests.exceptions.RequestException as e:
             logger.error(f"Bird cam image fetch failed: {e}")
 
         ai_style = settings.get('ai_style', 'colored pencil').strip() or 'colored pencil'
-        if ai_enhance and img_bytes:
+        if ai_enhance and img_bytes_raw:
             api_key = device_config.load_env_key("REPLICATE_API_TOKEN")
             if api_key:
                 try:
                     started_at = time.monotonic()
                     img_bytes, mime = BirdCam.apply_ai_style(
-                        api_key, img_bytes, ai_style,
+                        api_key, img_bytes_raw, ai_style,
                         bird_name=latest_bird, output_size=dimensions,
                     )
                     logger.info("BirdCam: AI styling completed in %.2fs", time.monotonic() - started_at)
