@@ -106,6 +106,7 @@ def take_screenshot_html(html_str, dimensions, timeout_ms=None):
 
 def take_screenshot(target, dimensions, timeout_ms=None):
     image = None
+    img_file_path = None
     try:
         # Create a temporary output file for the screenshot
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as img_file:
@@ -132,12 +133,37 @@ def take_screenshot(target, dimensions, timeout_ms=None):
         ]
         if timeout_ms:
             command.append(f"--timeout={timeout_ms}")
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess_timeout = (timeout_ms / 1000.0 + 5) if timeout_ms else None
+        logger.info(
+            "Starting screenshot render target=%s dimensions=%sx%s output=%s timeout_ms=%s",
+            target,
+            dimensions[0],
+            dimensions[1],
+            img_file_path,
+            timeout_ms,
+        )
+        result = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=subprocess_timeout,
+        )
+        logger.info(
+            "Screenshot render finished returncode=%s output=%s",
+            result.returncode,
+            img_file_path,
+        )
 
         # Check if the process failed or the output file is missing
         if result.returncode != 0 or not os.path.exists(img_file_path):
             logger.error("Failed to take screenshot:")
             logger.error(result.stderr.decode('utf-8'))
+            return None
+
+        if os.path.getsize(img_file_path) == 0:
+            logger.error("Failed to take screenshot: output file is empty: %s", img_file_path)
+            if result.stderr:
+                logger.error(result.stderr.decode('utf-8'))
             return None
 
         # Load the image using PIL
@@ -147,8 +173,23 @@ def take_screenshot(target, dimensions, timeout_ms=None):
         # Remove image files
         os.remove(img_file_path)
 
+    except subprocess.TimeoutExpired as e:
+        logger.error(
+            "Screenshot render timed out after %.1fs target=%s output=%s",
+            e.timeout,
+            target,
+            img_file_path,
+        )
+        if e.stderr:
+            logger.error(e.stderr.decode('utf-8', errors='replace'))
     except Exception as e:
         logger.error(f"Failed to take screenshot: {str(e)}")
+    finally:
+        if img_file_path and os.path.exists(img_file_path):
+            try:
+                os.remove(img_file_path)
+            except OSError:
+                logger.warning("Could not remove temporary screenshot file: %s", img_file_path)
 
     return image
 
