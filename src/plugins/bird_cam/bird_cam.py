@@ -169,8 +169,9 @@ class BirdCam(BasePlugin):
             f"Redraw this entire photo as a highly detailed {style} illustration. "
             f"Faithfully preserve the exact pose, colors, and markings of the {bird_name or 'bird'}. "
             f"Render every feather with individual {style} strokes. "
-            f"Make the background around the bird transparent."
-            f"Give a slight faded outline effect around the bird itself in black {style} to make it pop. "
+            f"Make the background around the bird fully transparent. "
+            f"If the bird is partially cut off at the frame edges, preserve that cutoff exactly as it appears — do not complete or invent missing parts. "
+            f"Give a slight faded outline effect around the bird in black {style} to make it pop. "
         )
         logger.info("BirdCam AI: sending request to Replicate flux-2-max prompt=%r", prompt)
         client = replicate.Client(api_token=api_key)
@@ -179,8 +180,7 @@ class BirdCam(BasePlugin):
             input={
                 "prompt": prompt,
                 "input_image": buf,
-                "output_format": "jpg",
-                "output_quality": 90,
+                "output_format": "png",
             },
         )
         logger.info("BirdCam AI: Replicate flux-2-max completed")
@@ -190,5 +190,5 @@ class BirdCam(BasePlugin):
         styled_bytes = styled_resp.content
         logger.info("BirdCam AI: downloaded result bytes=%s", len(styled_bytes))
         if output_size:
-            return _resize_image_bytes(styled_bytes, output_size, output_format="JPEG", flatten_alpha=True)
-        return _resize_image_bytes(styled_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", flatten_alpha=True)
+            return _resize_image_bytes(styled_bytes, output_size, output_format="PNG", flatten_alpha=False)
+        return _resize_image_bytes(styled_bytes, _MAX_AI_INPUT_SIZE, output_format="PNG", flatten_alpha=False)
