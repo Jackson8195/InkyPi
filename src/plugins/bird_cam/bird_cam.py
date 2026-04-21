@@ -179,7 +179,7 @@ class BirdCam(BasePlugin):
             input={
                 "prompt": prompt,
                 "input_image": buf,
-                "output_format": "jpeg",
+                "output_format": "jpg",
                 "output_quality": 90,
             },
         )
