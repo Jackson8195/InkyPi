@@ -169,7 +169,8 @@ class BirdCam(BasePlugin):
             f"Redraw this entire photo as a highly detailed {style} illustration. "
             f"Faithfully preserve the exact pose, colors, and markings of the {bird_name or 'bird'}. "
             f"Render every feather with individual {style} strokes. "
-            f"Replace the background with a softly blurred natural setting in the same {style} style."
+            f"Make the background around the bird transparent."
+            f"Give a slight faded outline effect around the bird itself in black {style} to make it pop. "
         )
         logger.info("BirdCam AI: sending request to Replicate flux-2-max prompt=%r", prompt)
         client = replicate.Client(api_token=api_key)

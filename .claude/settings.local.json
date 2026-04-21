@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:developers.openai.com)",
+      "WebFetch(domain:cookbook.openai.com)",
+      "WebFetch(domain:help.openai.com)",
+      "WebFetch(domain:evolink.ai)",
+      "WebFetch(domain:replicate.com)",
+      "WebFetch(domain:api.replicate.com)"
+    ]
+  }
+}
