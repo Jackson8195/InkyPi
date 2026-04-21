@@ -3,13 +3,60 @@ from utils.uptime_tracker import get_total_runtime, get_battery_uptime, read_wit
 from openai import OpenAI
 from PIL import Image
 from io import BytesIO
+import onnxruntime as ort
+import numpy as np
 import requests
 import logging
 import base64
+import os
 
 logger = logging.getLogger(__name__)
 
 THEMES = ['field_notes', 'night_watch', 'minimal']
+
+_U2NETP_URL = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx"
+_U2NETP_PATH = os.path.expanduser("~/.u2net/u2netp.onnx")
+_ort_session = None
+
+
+def _get_ort_session():
+    global _ort_session
+    if _ort_session is None:
+        if not os.path.exists(_U2NETP_PATH):
+            os.makedirs(os.path.dirname(_U2NETP_PATH), exist_ok=True)
+            logger.info("Downloading u2netp background removal model (~4MB)...")
+            r = requests.get(_U2NETP_URL, stream=True, timeout=60)
+            r.raise_for_status()
+            with open(_U2NETP_PATH, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            logger.info("u2netp model downloaded.")
+        _ort_session = ort.InferenceSession(_U2NETP_PATH)
+    return _ort_session
+
+
+def _remove_background(img_bytes):
+    session = _get_ort_session()
+    img = Image.open(BytesIO(img_bytes)).convert("RGB")
+    orig_size = img.size
+
+    resized = img.resize((320, 320), Image.LANCZOS)
+    inp = np.array(resized, dtype=np.float32) / 255.0
+    inp = (inp - [0.485, 0.456, 0.406]) / [0.229, 0.224, 0.225]
+    inp = inp.transpose(2, 0, 1)[np.newaxis].astype(np.float32)
+
+    input_name = session.get_inputs()[0].name
+    raw = session.run(None, {input_name: inp})[0]
+    mask = raw[0, 0]
+    mask = 1.0 / (1.0 + np.exp(-mask))
+    mask = (mask * 255).astype(np.uint8)
+    mask_img = Image.fromarray(mask).resize(orig_size, Image.LANCZOS)
+
+    img_rgba = img.convert("RGBA")
+    img_rgba.putalpha(mask_img)
+    buf = BytesIO()
+    img_rgba.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 class BirdCam(BasePlugin):
@@ -85,14 +132,12 @@ class BirdCam(BasePlugin):
             logger.error(f"Bird cam image fetch failed: {e}")
 
         ai_enhance = settings.get('ai_enhance') == 'true'
-        ai_prompt = settings.get('ai_prompt', '').strip()
-        if latest_bird and ai_prompt:
-            ai_prompt = ai_prompt.replace('{bird_name}', latest_bird)
-        if ai_enhance and ai_prompt and img_bytes:
+        ai_style = settings.get('ai_style', 'colored pencil').strip() or 'colored pencil'
+        if ai_enhance and img_bytes:
             api_key = device_config.load_env_key("OPEN_AI_SECRET")
             if api_key:
                 try:
-                    img_bytes = BirdCam.apply_ai_style(api_key, img_bytes, ai_prompt)
+                    img_bytes = BirdCam.apply_ai_style(api_key, img_bytes, ai_style, bird_name=latest_bird)
                     img_b64 = f"data:image/png;base64,{base64.b64encode(img_bytes).decode()}"
                 except Exception as e:
                     logger.error(f"AI image enhancement failed: {e}")
@@ -125,14 +170,14 @@ class BirdCam(BasePlugin):
         return self.render_image(dimensions, "bird_cam.html", "bird_cam.css", template_params)
 
     @staticmethod
-    def apply_ai_style(api_key, img_bytes, prompt):
+    def apply_ai_style(api_key, img_bytes, style, bird_name=None):
         client = OpenAI(api_key=api_key)
-        # Convert to RGBA PNG — required by the images.edit endpoint
-        img = Image.open(BytesIO(img_bytes)).convert("RGBA")
-        buf = BytesIO()
-        img.save(buf, format="PNG")
-        buf.seek(0)
+
+        isolated = _remove_background(img_bytes)
+
+        buf = BytesIO(isolated)
         buf.name = "bird.png"
+        prompt = f"Detailed {style} portrait of this {bird_name or 'bird'} on a dark vignette background."
         response = client.images.edit(
             model="gpt-image-1",
             image=buf,

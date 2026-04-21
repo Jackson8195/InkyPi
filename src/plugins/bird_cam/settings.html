@@ -56,11 +56,17 @@
 
 <div id="ai-section" style="display: none;">
     <div class="form-group">
-        <label class="form-label" for="ai_prompt">AI Style Prompt</label>
-        <textarea id="ai_prompt" name="ai_prompt" class="form-input"
-            rows="4"
-            placeholder="e.g. Redraw only the {bird_name} in this image as a detailed colored pencil illustration. Preserve the exact pose, plumage, and proportions faithfully. Apply visible pencil strokes with natural shading. Remove everything else — feeder, background — leaving only the bird on a plain white background."></textarea>
-        <small style="color: #888; font-size: 0.8em;">Use <strong>{bird_name}</strong> anywhere in the prompt — it will be replaced with the detected species name at render time. Requires OPEN_AI_SECRET.</small>
+        <label class="form-label" for="ai_style">Illustration Style</label>
+        <select id="ai_style" name="ai_style" class="form-input">
+            <option value="colored pencil">Colored Pencil</option>
+            <option value="watercolor">Watercolor</option>
+            <option value="ink sketch">Ink Sketch</option>
+            <option value="oil painting">Oil Painting</option>
+            <option value="graphite sketch">Graphite Sketch</option>
+        </select>
+        <small style="color: #888; font-size: 0.8em;">
+            Background is removed automatically, then the bird is redrawn in the chosen style. Requires OPEN_AI_SECRET.
+        </small>
     </div>
 </div>
 
@@ -127,7 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const aiEnhance = pluginSettings.ai_enhance === 'true';
         document.getElementById('ai_enhance').checked = aiEnhance;
-        document.getElementById('ai_prompt').value = pluginSettings.ai_prompt || '';
+        const aiStyleEl = document.getElementById('ai_style');
+        if (aiStyleEl) aiStyleEl.value = pluginSettings.ai_style || 'colored pencil';
         toggleAiSection(aiEnhance);
 
         const filterMode = pluginSettings.filterMode || 'all';
