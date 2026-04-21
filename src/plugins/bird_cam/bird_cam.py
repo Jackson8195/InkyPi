@@ -130,7 +130,7 @@ class BirdCam(BasePlugin):
                 except Exception as e:
                     logger.error(f"AI image enhancement failed: {e}")
             else:
-                logger.warning("AI enhancement enabled but OPEN_AI_SECRET not configured.")
+                logger.warning("AI enhancement enabled but REPLICATE_API_TOKEN not configured.")
 
         witty_status = read_witty_status()
         vin = witty_status.get('vin')
