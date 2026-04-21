@@ -54,8 +54,14 @@ def _remove_background(img_bytes):
     raw = session.run(None, {input_name: inp})[0]
     logger.info("BirdCam BG: ONNX inference complete")
     mask = raw[0, 0]
-    mask = 1.0 / (1.0 + np.exp(-mask))
-    mask = (mask * 255).astype(np.uint8)
+    mask = 1.0 / (1.0 + np.exp(-mask))  # sigmoid → [0, 1]
+
+    mask_min, mask_max = mask.min(), mask.max()
+    logger.info("BirdCam BG: mask raw range [%.3f, %.3f] after sigmoid", mask_min, mask_max)
+    if mask_max > mask_min:
+        mask = (mask - mask_min) / (mask_max - mask_min)
+
+    mask = (mask > 0.5).astype(np.uint8) * 255
     mask_img = Image.fromarray(mask).resize(orig_size, Image.LANCZOS)
 
     img_rgba = img.convert("RGBA")
@@ -281,13 +287,27 @@ class BirdCam(BasePlugin):
         preview_path = _save_bg_removed_preview(isolated, filename=source_filename, bird_name=bird_name)
         logger.info("BirdCam AI: saved background-removed preview path=%s", preview_path)
 
-        buf = BytesIO(isolated)
-        buf.name = "bird.png"
-        prompt = f"Detailed {style} portrait of this {bird_name or 'bird'} on a dark vignette background."
+        # Flatten bird onto off-white paper background before sending to images.edit.
+        # Keeping transparency makes gpt-image-1 preserve the opaque bird as a photo
+        # and only fill the transparent zone, preventing full pencil-style redraw.
+        bird_img = Image.open(BytesIO(isolated)).convert("RGBA")
+        paper = Image.new("RGB", bird_img.size, (245, 240, 230))
+        paper.paste(bird_img, mask=bird_img.getchannel("A"))
+        flat_buf = BytesIO()
+        paper.save(flat_buf, format="PNG")
+        flat_buf.seek(0)
+        flat_buf.name = "bird.png"
+
+        prompt = (
+            f"Redraw this entire image as a detailed {style} illustration. "
+            f"Preserve the exact {bird_name or 'bird'} pose, colors, and markings faithfully. "
+            f"Replace the background with a dark vignette gradient. "
+            f"Visible {style} strokes throughout."
+        )
         logger.info("BirdCam AI: sending image edit request to OpenAI")
         response = client.images.edit(
             model="gpt-image-1",
-            image=buf,
+            image=flat_buf,
             prompt=prompt,
         )
         logger.info("BirdCam AI: OpenAI image edit completed")
