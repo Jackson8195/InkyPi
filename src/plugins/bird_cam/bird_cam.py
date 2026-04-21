@@ -1,8 +1,8 @@
 from plugins.base_plugin.base_plugin import BasePlugin
 from utils.uptime_tracker import get_total_runtime, get_battery_uptime, read_witty_status, vin_to_percent
-from openai import OpenAI
 from PIL import Image
 from io import BytesIO
+import replicate
 import requests
 import logging
 import base64
@@ -50,8 +50,8 @@ class BirdCam(BasePlugin):
         template_params['themes'] = THEMES
         template_params['api_key'] = {
             "required": False,
-            "service": "OpenAI",
-            "expected_key": "OPEN_AI_SECRET"
+            "service": "Replicate",
+            "expected_key": "REPLICATE_API_TOKEN"
         }
         return template_params
 
@@ -122,7 +122,7 @@ class BirdCam(BasePlugin):
 
         ai_style = settings.get('ai_style', 'colored pencil').strip() or 'colored pencil'
         if ai_enhance and img_bytes:
-            api_key = device_config.load_env_key("OPEN_AI_SECRET")
+            api_key = device_config.load_env_key("REPLICATE_API_TOKEN")
             if api_key:
                 try:
                     started_at = time.monotonic()
@@ -164,32 +164,35 @@ class BirdCam(BasePlugin):
 
     @staticmethod
     def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None):
-        client = OpenAI(api_key=api_key)
         logger.info("BirdCam AI: starting style=%s bird=%s input_bytes=%s", style, bird_name, len(img_bytes))
 
-        prepared_bytes, _ = _resize_image_bytes(img_bytes, _MAX_AI_INPUT_SIZE, output_format="PNG")
+        prepared_bytes, _ = _resize_image_bytes(img_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", jpeg_quality=90)
 
         buf = BytesIO(prepared_bytes)
-        buf.name = "bird.png"
+        buf.name = "bird.jpg"
         prompt = (
-            f"Portrait wildlife illustration of only the {bird_name or 'bird'} in this photo. "
-            f"Completely discard the original background — remove all feeders, wood, glass, "
-            f"and surroundings entirely. "
-            f"Place the bird on a plain pure white background with no gradients, shadows, or texture. "
-            f"Render the bird in detailed {style} style with individual feather strands, "
-            f"accurate plumage colors, and lifelike markings. "
-            f"Close portrait composition — the bird filling most of the frame. "
-            f"No original background elements should remain."
+            f"Redraw this entire photo as a highly detailed {style} illustration. "
+            f"Faithfully preserve the exact pose, colors, and markings of the {bird_name or 'bird'}. "
+            f"Render every feather with individual {style} strokes. "
+            f"Replace the background with a softly blurred natural setting in the same {style} style."
         )
-        logger.info("BirdCam AI: sending request to OpenAI prompt=%r", prompt)
-        response = client.images.edit(
-            model="gpt-image-1",
-            image=buf,
-            prompt=prompt,
+        logger.info("BirdCam AI: sending request to Replicate flux-2-max prompt=%r", prompt)
+        client = replicate.Client(api_token=api_key)
+        output = client.run(
+            "black-forest-labs/flux-2-max",
+            input={
+                "prompt": prompt,
+                "input_image": buf,
+                "output_format": "jpeg",
+                "output_quality": 90,
+            },
         )
-        logger.info("BirdCam AI: OpenAI image edit completed")
-        styled_bytes = base64.b64decode(response.data[0].b64_json)
-        logger.info("BirdCam AI: decoded response bytes=%s", len(styled_bytes))
+        logger.info("BirdCam AI: Replicate flux-2-max completed")
+        result_url = str(output[0]) if isinstance(output, list) else str(output)
+        styled_resp = requests.get(result_url, timeout=60)
+        styled_resp.raise_for_status()
+        styled_bytes = styled_resp.content
+        logger.info("BirdCam AI: downloaded result bytes=%s", len(styled_bytes))
         if output_size:
             return _resize_image_bytes(styled_bytes, output_size, output_format="JPEG", flatten_alpha=True)
         return _resize_image_bytes(styled_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", flatten_alpha=True)
