@@ -40,6 +40,7 @@ def _get_ort_session():
 
 
 def _remove_background(img_bytes):
+    logger.info("BirdCam BG: starting background removal input_bytes=%s", len(img_bytes))
     session = _get_ort_session()
     img = Image.open(BytesIO(img_bytes)).convert("RGB")
     orig_size = img.size
@@ -51,6 +52,7 @@ def _remove_background(img_bytes):
 
     input_name = session.get_inputs()[0].name
     raw = session.run(None, {input_name: inp})[0]
+    logger.info("BirdCam BG: ONNX inference complete")
     mask = raw[0, 0]
     mask = 1.0 / (1.0 + np.exp(-mask))
     mask = (mask * 255).astype(np.uint8)
@@ -60,7 +62,9 @@ def _remove_background(img_bytes):
     img_rgba.putalpha(mask_img)
     buf = BytesIO()
     img_rgba.save(buf, format="PNG")
-    return buf.getvalue()
+    output_bytes = buf.getvalue()
+    logger.info("BirdCam BG: background removal output bytes=%s", len(output_bytes))
+    return output_bytes
 
 
 def _resize_image_bytes(img_bytes, max_size, output_format=None, flatten_alpha=False, jpeg_quality=85):
@@ -123,19 +127,30 @@ class BirdCam(BasePlugin):
     def generate_image(self, settings, device_config):
         host = settings.get('host', '').strip()
         port = settings.get('port', '5000').strip() or '5000'
+        ai_enhance = settings.get('ai_enhance') == 'true'
+        theme = settings.get('theme', 'field_notes')
 
         if not host:
             raise RuntimeError("Bird cam host IP is required.")
 
         base_url = f"http://{host}:{port}"
+        logger.info(
+            "BirdCam: starting generate_image host=%s port=%s theme=%s ai_enhance=%s",
+            host,
+            port,
+            theme,
+            ai_enhance,
+        )
 
         dimensions = device_config.get_resolution()
         if device_config.get_config("orientation") == "vertical":
             dimensions = dimensions[::-1]
 
         try:
+            logger.info("BirdCam: fetching stats from %s/api/stats", base_url)
             stats_resp = requests.get(f"{base_url}/api/stats", timeout=5)
             stats_resp.raise_for_status()
+            logger.info("BirdCam: stats fetch complete status=%s", stats_resp.status_code)
             stats = stats_resp.json()
         except requests.exceptions.ConnectionError:
             raise RuntimeError(f"Cannot reach bird cam at {host}:{port}. Check host and network.")
@@ -147,7 +162,9 @@ class BirdCam(BasePlugin):
 
         top_birds = []
         try:
+            logger.info("BirdCam: fetching bird counts from %s/api/bird_counts_raw", base_url)
             counts_resp = requests.get(f"{base_url}/api/bird_counts_raw", timeout=5)
+            logger.info("BirdCam: bird counts fetch complete status=%s", counts_resp.status_code)
             if counts_resp.status_code == 200:
                 counts = counts_resp.json()
                 top_birds = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -164,13 +181,22 @@ class BirdCam(BasePlugin):
         filename = None
         try:
             params = [('birds[]', b) for b in bird_filters] if bird_filters else []
+            logger.info("BirdCam: fetching latest image metadata filters=%s", bird_filters)
             latest_resp = requests.get(f"{base_url}/api/latest_image", params=params, timeout=5)
+            logger.info("BirdCam: latest image metadata fetch complete status=%s", latest_resp.status_code)
             if latest_resp.status_code == 200:
                 latest_data = latest_resp.json()
                 filename = latest_data.get('filename')
                 latest_bird = latest_data.get('bird')
+                logger.info("BirdCam: latest image metadata filename=%s bird=%s", filename, latest_bird)
                 if filename:
+                    logger.info("BirdCam: fetching image bytes from %s/images/%s", base_url, filename)
                     img_resp = requests.get(f"{base_url}/images/{filename}", timeout=10)
+                    logger.info(
+                        "BirdCam: image fetch complete status=%s bytes=%s",
+                        img_resp.status_code,
+                        len(img_resp.content) if img_resp.content else 0,
+                    )
                     if img_resp.status_code == 200:
                         img_bytes = img_resp.content
                         img_bytes, mime = _resize_image_bytes(img_bytes, dimensions)
@@ -178,9 +204,14 @@ class BirdCam(BasePlugin):
         except requests.exceptions.RequestException as e:
             logger.error(f"Bird cam image fetch failed: {e}")
 
-        ai_enhance = settings.get('ai_enhance') == 'true'
         ai_style = settings.get('ai_style', 'colored pencil').strip() or 'colored pencil'
         if ai_enhance and img_bytes:
+            logger.info(
+                "BirdCam: entering AI enhancement filename=%s bird=%s bytes=%s",
+                filename,
+                latest_bird,
+                len(img_bytes),
+            )
             api_key = device_config.load_env_key("OPEN_AI_SECRET")
             if api_key:
                 try:
@@ -199,11 +230,12 @@ class BirdCam(BasePlugin):
                     logger.error(f"AI image enhancement failed: {e}")
             else:
                 logger.warning("AI enhancement enabled but OPEN_AI_SECRET not configured.")
+        else:
+            logger.info("BirdCam: skipping AI enhancement ai_enhance=%s has_image=%s", ai_enhance, bool(img_bytes))
 
         witty_status = read_witty_status()
         vin = witty_status.get('vin')
 
-        theme = settings.get('theme', 'field_notes')
         if theme not in THEMES:
             theme = 'field_notes'
 
@@ -223,25 +255,44 @@ class BirdCam(BasePlugin):
             "plugin_settings": settings,
         }
 
+        logger.info(
+            "BirdCam: rendering final HTML image filename=%s bird=%s has_img_b64=%s",
+            filename,
+            latest_bird,
+            bool(img_b64),
+        )
         return self.render_image(dimensions, "bird_cam.html", "bird_cam.css", template_params)
 
     @staticmethod
     def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None, source_filename=None):
         client = OpenAI(api_key=api_key)
+        logger.info(
+            "BirdCam AI: starting style=%s bird=%s source_filename=%s input_bytes=%s",
+            style,
+            bird_name,
+            source_filename,
+            len(img_bytes),
+        )
 
         prepared_bytes, _ = _resize_image_bytes(img_bytes, _MAX_AI_INPUT_SIZE, output_format="PNG")
+        logger.info("BirdCam AI: prepared input bytes=%s", len(prepared_bytes))
         isolated = _remove_background(prepared_bytes)
-        _save_bg_removed_preview(isolated, filename=source_filename, bird_name=bird_name)
+        logger.info("BirdCam AI: background removal complete bytes=%s", len(isolated))
+        preview_path = _save_bg_removed_preview(isolated, filename=source_filename, bird_name=bird_name)
+        logger.info("BirdCam AI: saved background-removed preview path=%s", preview_path)
 
         buf = BytesIO(isolated)
         buf.name = "bird.png"
         prompt = f"Detailed {style} portrait of this {bird_name or 'bird'} on a dark vignette background."
+        logger.info("BirdCam AI: sending image edit request to OpenAI")
         response = client.images.edit(
             model="gpt-image-1",
             image=buf,
             prompt=prompt,
         )
+        logger.info("BirdCam AI: OpenAI image edit completed")
         styled_bytes = base64.b64decode(response.data[0].b64_json)
+        logger.info("BirdCam AI: decoded OpenAI response bytes=%s", len(styled_bytes))
         if output_size:
             return _resize_image_bytes(styled_bytes, output_size, output_format="JPEG", flatten_alpha=True)
         return _resize_image_bytes(styled_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", flatten_alpha=True)
