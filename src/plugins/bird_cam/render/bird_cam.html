@@ -69,11 +69,16 @@
     <!-- Right column: Last Visitor label, bird name title, photo, filename -->
     <div class="right-col">
 
-        <div class="last-visitor-label">Last Visitor:</div>
+        <div class="last-visitor-label">Highest Score:</div>
 
         <div class="bird-info">
             {% if bird_name %}
                 <div class="bird-name">{{ bird_name }}</div>
+                {% if bird_score is not none %}
+                <div class="bird-score">
+                    <span style="color: hsl({{ (bird_score * 1.2) | int }}, 75%, 38%);">{{ bird_score }}</span>/100
+                </div>
+                {% endif %}
             {% elif filter_active %}
                 <div class="bird-name dim">
                     No recent<br>{{ bird_filters | join(' / ') if bird_filters else 'bird' }}

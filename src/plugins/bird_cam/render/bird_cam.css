@@ -133,6 +133,14 @@ body {
     display: block;
 }
 
+/* Score display below bird name */
+.bird-score {
+    font-size: 1.5em;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.4;
+}
+
 /* No-photo placeholder */
 .no-photo {
     width: 100%;
@@ -263,6 +271,7 @@ body {
 
 /* Sharpie/marker font for all field notes text */
 .field_notes .bird-name,
+.field_notes .bird-score,
 .field_notes .stats-title,
 .field_notes .stat-row,
 .field_notes .battery-label,

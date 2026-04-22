@@ -95,6 +95,7 @@ class BirdCam(BasePlugin):
             bird_filters = [bird_filters] if bird_filters else []
 
         latest_bird = None
+        bird_score = None
         img_b64 = None
         img_bytes = None
         img_bytes_raw = None
@@ -106,7 +107,14 @@ class BirdCam(BasePlugin):
                 latest_data = latest_resp.json()
                 filename = latest_data.get('filename')
                 latest_bird = latest_data.get('bird')
-                logger.info("BirdCam: latest image filename=%s bird=%s", filename, latest_bird)
+                if filename:
+                    parts = filename.rsplit('_', 2)
+                    if len(parts) == 3:
+                        try:
+                            bird_score = int(parts[1])
+                        except ValueError:
+                            pass
+                logger.info("BirdCam: latest image filename=%s bird=%s score=%s", filename, latest_bird, bird_score)
                 if filename:
                     img_resp = requests.get(f"{base_url}/images/{filename}", timeout=10)
                     if img_resp.status_code == 200:
@@ -145,6 +153,7 @@ class BirdCam(BasePlugin):
         template_params = {
             "stats": stats,
             "bird_name": latest_bird,
+            "bird_score": bird_score,
             "img_b64": img_b64,
             "filter_active": bool(bird_filters),
             "bird_filters": bird_filters,
