@@ -99,6 +99,20 @@ function toggleAiSection(enabled) {
     document.getElementById('ai-section').style.display = enabled ? '' : 'none';
 }
 
+function toggleAiModelDropdown(e) {
+    e.stopPropagation();
+    const dd = document.getElementById('ai-model-dropdown');
+    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function pickAiModel(el) {
+    document.getElementById('ai_model_value').value = el.dataset.value;
+    document.getElementById('ai-model-label').textContent = el.dataset.label;
+    document.getElementById('ai-model-dropdown').style.display = 'none';
+    document.querySelectorAll('.ai-model-opt').forEach(o => o.style.background = '');
+    el.style.background = '#f0f4ff';
+}
+
 function toggleFilterSection(mode) {
     document.getElementById('filter-section').style.display = mode === 'specific' ? '' : 'none';
 }
@@ -149,6 +163,11 @@ function loadBirdsFromCamera() {
         });
 }
 
+document.addEventListener('click', () => {
+    const dd = document.getElementById('ai-model-dropdown');
+    if (dd) dd.style.display = 'none';
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     if (loadPluginSettings) {
         document.getElementById('host').value = pluginSettings.host || '';
@@ -159,8 +178,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('ai_enhance').checked = aiEnhance;
         const aiStyleEl = document.getElementById('ai_style');
         if (aiStyleEl) aiStyleEl.value = pluginSettings.ai_style || 'colored pencil';
-        const aiModelEl = document.getElementById('ai_model');
-        if (aiModelEl) aiModelEl.value = pluginSettings.ai_model || 'flux-2-pro';
+        const aiModelVal = pluginSettings.ai_model || 'flux-2-pro';
+        document.getElementById('ai_model_value').value = aiModelVal;
+        const savedOpt = document.querySelector(`.ai-model-opt[data-value="${aiModelVal}"]`);
+        if (savedOpt) {
+            document.getElementById('ai-model-label').textContent = savedOpt.dataset.label;
+            savedOpt.style.background = '#f0f4ff';
+        }
         const aiSuffixEl = document.getElementById('ai_prompt_suffix');
         if (aiSuffixEl) aiSuffixEl.value = pluginSettings.ai_prompt_suffix || '';
         toggleAiSection(aiEnhance);
