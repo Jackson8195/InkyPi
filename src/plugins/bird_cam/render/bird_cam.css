@@ -239,8 +239,7 @@ body {
 
 /* Ruled notebook lines on the left column */
 .field_notes .left-col {
-    border-left: 3px solid rgba(180, 40, 40, 0.65);
-    padding-left: calc(4% + 6px);
+    padding-left: 4%;
 }
 
 .field_notes .stat-row {

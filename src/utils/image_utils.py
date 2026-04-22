@@ -125,6 +125,7 @@ def take_screenshot(target, dimensions, timeout_ms=None):
             "--js-flags=--jitless",
             "--disable-zero-copy",
             "--disable-gpu-memory-buffer-compositor-resources",
+            "--allow-file-access-from-files",
             "--disable-extensions",
             "--disable-plugins",
             "--mute-audio",

@@ -4,18 +4,16 @@ General-purpose SSH agent for the Pi at `pi@inky-pizero2w.local`. Use this for a
 **NEVER run write, delete, or destructive commands** (file writes, rm, mv, systemctl stop/restart, git restore, pip install, etc.) **without first describing the command to the user and getting explicit approval.** Read-only commands (ls, cat, journalctl, systemctl status, git log, ps, df, etc.) may run freely.
 
 ## SSH connection
-Try hostname first, fall back to IP if it doesn't resolve:
+Always use IP directly:
 ```
-ssh -o ConnectTimeout=30 pi@inky-pizero2w.local "<command>"
-# fallback:
 ssh -o ConnectTimeout=30 pi@192.168.0.151 "<command>"
 ```
 
 ## Deploy to Pi
 When asked to deploy the current branch:
 1. Confirm with the user before running (this is a write operation).
-2. Run restore and pull: `ssh -o ConnectTimeout=30 pi@inky-pizero2w.local "cd /home/pi/InkyPi && git restore . && git pull 2>&1"`
-3. Restart the service: `ssh -o ConnectTimeout=15 pi@inky-pizero2w.local "sudo systemctl restart inkypi.service && echo restarted"`
+2. Run restore and pull: `ssh -o ConnectTimeout=30 pi@192.168.0.151 "cd /home/pi/InkyPi && git restore . && git pull 2>&1"`
+3. Restart the service: `ssh -o ConnectTimeout=15 pi@192.168.0.151 "sudo systemctl restart inkypi.service && echo restarted"`
 4. Report what files changed and confirm the service restarted.
 
 ## Battery reset
