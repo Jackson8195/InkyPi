@@ -169,10 +169,9 @@ class BirdCam(BasePlugin):
         buf = BytesIO(prepared_bytes)
         buf.name = "bird.jpg"
         prompt = (
-            f"Convert this photo into a {style} illustration. "
-            f"Keep the bird's exact pose, markings, and colors. "
-            f"Render every feather with individual {style} strokes. "
-            f"Use a plain white background."
+            f"High detail {style} art of this bird on a white background. "
+            f"Preserve its exact shape and likeness. "
+            f"Accurately represent the color of the bird."
         )
         client = replicate.Client(api_token=api_key)
         if ai_model == "flux-kontext-pro":
