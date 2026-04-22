@@ -16,6 +16,6 @@ echo "Updating fullcalendar JS"
 curl -L https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js -o src/static/scripts/calendar.min.js
 
 echo "Updating Permanent Marker font..."
-curl -L https://github.com/google/fonts/raw/main/ofl/permanentmarker/PermanentMarker-Regular.ttf -o src/static/fonts/PermanentMarker-Regular.ttf
+curl -s https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004Hao.ttf -o src/static/fonts/PermanentMarker-Regular.ttf
 
 echo "All vendor files updated."
