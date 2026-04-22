@@ -64,8 +64,15 @@
             <option value="oil painting">Oil Painting</option>
             <option value="graphite sketch">Graphite Sketch</option>
         </select>
+    </div>
+    <div class="form-group">
+        <label class="form-label" for="ai_model">AI Model</label>
+        <select id="ai_model" name="ai_model" class="form-input">
+            <option value="flux-2-pro">Flux 2 Pro — creative, loose reference</option>
+            <option value="flux-kontext-pro">Flux Kontext Pro — faithful image editing</option>
+        </select>
         <small style="color: #888; font-size: 0.8em;">
-            The bird photo is redrawn in the chosen style using Replicate flux-2-max. Requires REPLICATE_API_TOKEN in .env.
+            Requires REPLICATE_API_TOKEN in .env.
         </small>
     </div>
 </div>
@@ -135,6 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('ai_enhance').checked = aiEnhance;
         const aiStyleEl = document.getElementById('ai_style');
         if (aiStyleEl) aiStyleEl.value = pluginSettings.ai_style || 'colored pencil';
+        const aiModelEl = document.getElementById('ai_model');
+        if (aiModelEl) aiModelEl.value = pluginSettings.ai_model || 'flux-2-pro';
         toggleAiSection(aiEnhance);
 
         const filterMode = pluginSettings.filterMode || 'all';

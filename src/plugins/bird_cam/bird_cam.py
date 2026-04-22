@@ -117,6 +117,7 @@ class BirdCam(BasePlugin):
             logger.error(f"Bird cam image fetch failed: {e}")
 
         ai_style = settings.get('ai_style', 'colored pencil').strip() or 'colored pencil'
+        ai_model = settings.get('ai_model', 'flux-2-pro')
         if ai_enhance and img_bytes_raw:
             api_key = device_config.load_env_key("REPLICATE_API_TOKEN")
             if api_key:
@@ -125,6 +126,7 @@ class BirdCam(BasePlugin):
                     img_bytes, mime = BirdCam.apply_ai_style(
                         api_key, img_bytes_raw, ai_style,
                         bird_name=latest_bird, output_size=dimensions,
+                        ai_model=ai_model,
                     )
                     logger.info("BirdCam: AI styling completed in %.2fs", time.monotonic() - started_at)
                     img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
@@ -159,8 +161,8 @@ class BirdCam(BasePlugin):
         return self.render_image(dimensions, "bird_cam.html", "bird_cam.css", template_params)
 
     @staticmethod
-    def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None):
-        logger.info("BirdCam AI: starting style=%s bird=%s input_bytes=%s", style, bird_name, len(img_bytes))
+    def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None, ai_model="flux-2-pro"):
+        logger.info("BirdCam AI: starting model=%s style=%s bird=%s input_bytes=%s", ai_model, style, bird_name, len(img_bytes))
 
         prepared_bytes, _ = _resize_image_bytes(img_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", jpeg_quality=90)
 
@@ -172,21 +174,36 @@ class BirdCam(BasePlugin):
             f"Render every feather with individual {style} strokes. "
             f"Use a plain white background."
         )
-        logger.info("BirdCam AI: sending request to Replicate flux-2-pro prompt=%r", prompt)
         client = replicate.Client(api_token=api_key)
-        output = client.run(
-            "black-forest-labs/flux-2-pro",
-            input={
-                "prompt": prompt,
-                "input_images": [buf],
-                "aspect_ratio": "match_input_image",
-                "resolution": "match_input_image",
-                "output_format": "jpg",
-                "output_quality": 90,
-                "safety_tolerance": 2,
-            },
-        )
-        logger.info("BirdCam AI: Replicate flux-2-pro completed")
+        if ai_model == "flux-kontext-pro":
+            logger.info("BirdCam AI: sending request to flux-kontext-pro prompt=%r", prompt)
+            output = client.run(
+                "black-forest-labs/flux-kontext-pro",
+                input={
+                    "prompt": prompt,
+                    "input_image": buf,
+                    "aspect_ratio": "match_input_image",
+                    "output_format": "jpg",
+                    "safety_tolerance": 2,
+                    "prompt_upsampling": False,
+                },
+            )
+            logger.info("BirdCam AI: Replicate flux-kontext-pro completed")
+        else:
+            logger.info("BirdCam AI: sending request to flux-2-pro prompt=%r", prompt)
+            output = client.run(
+                "black-forest-labs/flux-2-pro",
+                input={
+                    "prompt": prompt,
+                    "input_images": [buf],
+                    "aspect_ratio": "match_input_image",
+                    "resolution": "match_input_image",
+                    "output_format": "jpg",
+                    "output_quality": 90,
+                    "safety_tolerance": 2,
+                },
+            )
+            logger.info("BirdCam AI: Replicate flux-2-pro completed")
         result_url = str(output[0]) if isinstance(output, list) else str(output)
         styled_resp = requests.get(result_url, timeout=60)
         styled_resp.raise_for_status()
