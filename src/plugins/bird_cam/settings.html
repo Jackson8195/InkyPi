@@ -11,7 +11,7 @@
 <div class="form-group">
     <label for="theme" class="form-label">Theme</label>
     <select id="theme" name="theme" class="form-input">
-        <option value="field_notes">Field Notes — warm parchment</option>
+        <option value="field_notes">Field Notes</option>
         <option value="night_watch">Night Watch — dark navy</option>
         <option value="minimal">Minimal — clean white</option>
     </select>
@@ -61,7 +61,7 @@
             <option value="colored pencil">Colored Pencil</option>
             <option value="colored ink pen">Colored Ink Pen</option>
             <option value="watercolor">Watercolor</option>
-            <option value="ink sketch">Ink Sketch</option>
+            <option value="vintage pen ink sketch">Vintage Pen Ink Sketch</option>
             <option value="oil painting">Oil Painting</option>
             <option value="acrylic painting">Acrylic Paint</option>
             <option value="graphite sketch">Graphite Sketch</option>
@@ -159,9 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('ai_enhance').checked = aiEnhance;
         const aiStyleEl = document.getElementById('ai_style');
         if (aiStyleEl) aiStyleEl.value = pluginSettings.ai_style || 'colored pencil';
-        const aiModelVal = pluginSettings.ai_model || 'flux-2-pro';
-        const aiModelRadio = document.querySelector(`input[name="ai_model"][value="${aiModelVal}"]`);
-        if (aiModelRadio) aiModelRadio.checked = true;
+        const aiModelEl = document.getElementById('ai_model');
+        if (aiModelEl) aiModelEl.value = pluginSettings.ai_model || 'flux-2-pro';
         const aiSuffixEl = document.getElementById('ai_prompt_suffix');
         if (aiSuffixEl) aiSuffixEl.value = pluginSettings.ai_prompt_suffix || '';
         toggleAiSection(aiEnhance);
