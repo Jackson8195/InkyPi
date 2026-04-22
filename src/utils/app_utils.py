@@ -27,6 +27,10 @@ FONT_FAMILIES = {
         "font-weight": "normal",
         "file": "Napoli.ttf"
     }],
+    "Permanent Marker": [{
+        "font-weight": "normal",
+        "file": "PermanentMarker-Regular.ttf"
+    }],
     "DS-Digital": [{
         "font-weight": "normal",
         "file": os.path.join("DS-DIGI", "DS-DIGI.TTF")

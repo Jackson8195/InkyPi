@@ -59,6 +59,7 @@
         <label class="form-label" for="ai_style">Illustration Style</label>
         <select id="ai_style" name="ai_style" class="form-input">
             <option value="colored pencil">Colored Pencil</option>
+            <option value="colored ink pen">Colored Ink Pen</option>
             <option value="watercolor">Watercolor</option>
             <option value="ink sketch">Ink Sketch</option>
             <option value="oil painting">Oil Painting</option>
@@ -68,12 +69,18 @@
     <div class="form-group">
         <label class="form-label" for="ai_model">AI Model</label>
         <select id="ai_model" name="ai_model" class="form-input">
-            <option value="flux-2-pro">Flux 2 Pro — creative, loose reference</option>
-            <option value="flux-kontext-pro">Flux Kontext Pro — faithful image editing</option>
+            <option value="gpt-image-2">GPT Image 2 — OpenAI latest (typically best results) ($0.047/image)</option>
+            <option value="flux-kontext-pro">Flux Kontext Pro — faithful image editing ($0.040/image)</option>
+            <option value="flux-2-pro">Flux 2 Pro — Often 2nd best option ($0.015/run)</option>
         </select>
         <small style="color: #888; font-size: 0.8em;">
             Requires REPLICATE_API_TOKEN in .env.
         </small>
+    </div>
+    <div class="form-group">
+        <label class="form-label" for="ai_prompt_suffix">Additional Prompt Text (optional)</label>
+        <textarea id="ai_prompt_suffix" name="ai_prompt_suffix" class="form-input" rows="3"
+            placeholder="Appended to the end of the AI prompt, e.g. 'Make the style more impressionist.'"></textarea>
     </div>
 </div>
 
@@ -144,6 +151,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (aiStyleEl) aiStyleEl.value = pluginSettings.ai_style || 'colored pencil';
         const aiModelEl = document.getElementById('ai_model');
         if (aiModelEl) aiModelEl.value = pluginSettings.ai_model || 'flux-2-pro';
+        const aiSuffixEl = document.getElementById('ai_prompt_suffix');
+        if (aiSuffixEl) aiSuffixEl.value = pluginSettings.ai_prompt_suffix || '';
         toggleAiSection(aiEnhance);
 
         const filterMode = pluginSettings.filterMode || 'all';

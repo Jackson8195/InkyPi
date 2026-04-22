@@ -43,7 +43,11 @@
             {% if stats.last_detection %}
             <div class="stat-row">
                 <span class="stat-label">Last seen</span>
-                <span class="stat-value">{{ stats.last_detection[11:16] }}</span>
+                {% set h = stats.last_detection[11:13] | int %}
+                {% set m = stats.last_detection[14:16] %}
+                {% set ampm = 'am' if h < 12 else 'pm' %}
+                {% set h12 = (h % 12) if (h % 12) != 0 else 12 %}
+                <span class="stat-value">{{ h12 }}:{{ m }}{{ ampm }}</span>
             </div>
             {% endif %}
         </div>

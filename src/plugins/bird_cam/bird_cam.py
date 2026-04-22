@@ -123,10 +123,11 @@ class BirdCam(BasePlugin):
             if api_key:
                 try:
                     started_at = time.monotonic()
+                    ai_prompt_suffix = settings.get('ai_prompt_suffix', '').strip()
                     img_bytes, mime = BirdCam.apply_ai_style(
                         api_key, img_bytes_raw, ai_style,
                         bird_name=latest_bird, output_size=dimensions,
-                        ai_model=ai_model,
+                        ai_model=ai_model, prompt_suffix=ai_prompt_suffix,
                     )
                     logger.info("BirdCam: AI styling completed in %.2fs", time.monotonic() - started_at)
                     img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
@@ -161,7 +162,7 @@ class BirdCam(BasePlugin):
         return self.render_image(dimensions, "bird_cam.html", "bird_cam.css", template_params)
 
     @staticmethod
-    def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None, ai_model="flux-2-pro"):
+    def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None, ai_model="flux-2-pro", prompt_suffix=""):
         logger.info("BirdCam AI: starting model=%s style=%s bird=%s input_bytes=%s", ai_model, style, bird_name, len(img_bytes))
 
         prepared_bytes, _ = _resize_image_bytes(img_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", jpeg_quality=90)
@@ -169,25 +170,51 @@ class BirdCam(BasePlugin):
         buf = BytesIO(prepared_bytes)
         buf.name = "bird.jpg"
         prompt = (
-            f"High detail {style} art of this bird on a white background. "
-            f"Preserve its exact shape and likeness. "
-            f"Accurately represent the color of the bird."
+            f"Draw the bird exactly as is but in the style of {style}. "
+            f"Change the background to blank white #FFFFFF while keeping the bird and the feeder perch in the exact same position. "
+            f"The bird should be preserved exactly as is relative to its position in the image and feeder. "
+            f"Preserve colors of the bird, its plumage should be accurate to the real life source image. "
+            f"Use high detail, it should be a professional looking portrait."
         )
+        if prompt_suffix:
+            prompt = f"{prompt} {prompt_suffix}"
         client = replicate.Client(api_token=api_key)
         if ai_model == "flux-kontext-pro":
-            logger.info("BirdCam AI: sending request to flux-kontext-pro prompt=%r", prompt)
+            target = output_size or _MAX_AI_INPUT_SIZE
+            logger.info("BirdCam AI: sending request to flux-kontext-pro prompt=%r target=%s", prompt, target)
             output = client.run(
                 "black-forest-labs/flux-kontext-pro",
                 input={
                     "prompt": prompt,
                     "input_image": buf,
                     "aspect_ratio": "match_input_image",
+                    "output_width": target[0],
+                    "output_height": target[1],
                     "output_format": "jpg",
                     "safety_tolerance": 2,
                     "prompt_upsampling": False,
                 },
             )
             logger.info("BirdCam AI: Replicate flux-kontext-pro completed")
+        elif ai_model == "gpt-image-2":
+            w, h = output_size if output_size else (1024, 1024)
+            if w > 1024 or h > 1024:
+                size = "1536x1024" if w >= h else "1024x1536"
+            else:
+                size = "1024x1024"
+            logger.info("BirdCam AI: sending request to gpt-image-2 prompt=%r size=%s", prompt, size)
+            output = client.run(
+                "openai/gpt-image-2",
+                input={
+                    "prompt": prompt,
+                    "input_images": [buf],
+                    "size": size,
+                    "output_format": "jpeg",
+                    "output_compression": 90,
+                    "quality": "medium",
+                },
+            )
+            logger.info("BirdCam AI: Replicate gpt-image-2 completed")
         else:
             logger.info("BirdCam AI: sending request to flux-2-pro prompt=%r", prompt)
             output = client.run(
