@@ -182,7 +182,7 @@ class BirdCam(BasePlugin):
                 "aspect_ratio": "match_input_image",
                 "output_format": "jpg",
                 "safety_tolerance": 2,
-                "prompt_upsampling": False,
+                "prompt_upsampling": True,
             },
         )
         logger.info("BirdCam AI: Replicate flux-kontext-pro completed")
