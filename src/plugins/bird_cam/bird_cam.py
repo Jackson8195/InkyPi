@@ -167,12 +167,10 @@ class BirdCam(BasePlugin):
         buf = BytesIO(prepared_bytes)
         buf.name = "bird.jpg"
         prompt = (
-            f"A faithful {style} illustration of the bird in this photo. "
-            f"Redraw it exactly as it appears — same pose, same colors, same markings. "
+            f"Convert this photo into a {style} illustration. "
+            f"Keep the bird's exact pose, markings, and colors. "
             f"Render every feather with individual {style} strokes. "
-            f"Make the background around the bird fully transparent. "
-            f"If the bird is partially cut off at the frame edges, preserve that cutoff exactly — do not complete or invent missing parts. "
-            f"Give a slight faded outline effect around the bird in black {style} to make it pop. "
+            f"Use a plain white background."
         )
         logger.info("BirdCam AI: sending request to Replicate flux-kontext-pro prompt=%r", prompt)
         client = replicate.Client(api_token=api_key)
