@@ -7,6 +7,7 @@ import requests
 import logging
 import base64
 import time
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,7 @@ class BirdCam(BasePlugin):
         except requests.exceptions.RequestException as e:
             logger.error(f"Bird cam /api/bird_counts_raw failed: {e}")
 
+        filter_mode = settings.get('filterMode', 'all')
         bird_filters = settings.get('bird_filter[]', [])
         if isinstance(bird_filters, str):
             bird_filters = [bird_filters] if bird_filters else []
@@ -100,29 +102,55 @@ class BirdCam(BasePlugin):
         img_bytes = None
         img_bytes_raw = None
         filename = None
-        try:
-            params = [('birds[]', b) for b in bird_filters] if bird_filters else []
-            latest_resp = requests.get(f"{base_url}/api/best_image", params=params, timeout=5)
-            if latest_resp.status_code == 200:
-                latest_data = latest_resp.json()
-                filename = latest_data.get('filename')
-                latest_bird = latest_data.get('bird')
-                if filename:
-                    parts = filename.rsplit('_', 2)
-                    if len(parts) == 3:
-                        try:
-                            bird_score = int(parts[1])
-                        except ValueError:
-                            pass
-                logger.info("BirdCam: latest image filename=%s bird=%s score=%s", filename, latest_bird, bird_score)
-                if filename:
-                    img_resp = requests.get(f"{base_url}/images/{filename}", timeout=10)
-                    if img_resp.status_code == 200:
-                        img_bytes_raw = img_resp.content
-                        img_bytes, mime = _resize_image_bytes(img_bytes_raw, dimensions)
-                        img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Bird cam image fetch failed: {e}")
+
+        specific_filename = settings.get('specific_filename', '').strip()
+        if filter_mode == 'specific_photo' and specific_filename:
+            filename = specific_filename
+            # Parse bird name and score from img-BirdName_score_timestamp.ext
+            base = filename.rsplit('.', 1)[0]
+            if base.startswith('img-'):
+                base = base[4:]
+            parts = base.split('_')
+            if len(parts) >= 2:
+                raw_name = parts[0]
+                try:
+                    bird_score = int(parts[1])
+                except ValueError:
+                    pass
+                latest_bird = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', raw_name)
+            logger.info("BirdCam: specific photo filename=%s bird=%s score=%s", filename, latest_bird, bird_score)
+            try:
+                img_resp = requests.get(f"{base_url}/images/{filename}", timeout=10)
+                if img_resp.status_code == 200:
+                    img_bytes_raw = img_resp.content
+                    img_bytes, mime = _resize_image_bytes(img_bytes_raw, dimensions)
+                    img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Bird cam specific image fetch failed: {e}")
+        else:
+            try:
+                params = [('birds[]', b) for b in bird_filters] if bird_filters else []
+                latest_resp = requests.get(f"{base_url}/api/best_image", params=params, timeout=5)
+                if latest_resp.status_code == 200:
+                    latest_data = latest_resp.json()
+                    filename = latest_data.get('filename')
+                    latest_bird = latest_data.get('bird')
+                    if filename:
+                        parts = filename.rsplit('_', 2)
+                        if len(parts) == 3:
+                            try:
+                                bird_score = int(parts[1])
+                            except ValueError:
+                                pass
+                    logger.info("BirdCam: latest image filename=%s bird=%s score=%s", filename, latest_bird, bird_score)
+                    if filename:
+                        img_resp = requests.get(f"{base_url}/images/{filename}", timeout=10)
+                        if img_resp.status_code == 200:
+                            img_bytes_raw = img_resp.content
+                            img_bytes, mime = _resize_image_bytes(img_bytes_raw, dimensions)
+                            img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Bird cam image fetch failed: {e}")
 
         ai_style = settings.get('ai_style', 'colored pencil').strip() or 'colored pencil'
         ai_model = settings.get('ai_model', 'flux-2-pro')
@@ -155,7 +183,7 @@ class BirdCam(BasePlugin):
             "bird_name": latest_bird,
             "bird_score": bird_score,
             "img_b64": img_b64,
-            "filter_active": bool(bird_filters),
+            "filter_active": bool(bird_filters) or filter_mode == 'specific_photo',
             "bird_filters": bird_filters,
             "battery_percent": vin_to_percent(vin) if vin else 0,
             "battery_voltage": vin if vin else None,

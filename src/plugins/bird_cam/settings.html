@@ -30,6 +30,11 @@
                 onchange="toggleFilterSection(this.value)">
             Filter to specific species
         </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="radio" name="filterMode" id="filterSpecificPhoto" value="specific_photo"
+                onchange="toggleFilterSection(this.value)">
+            Pin a specific photo
+        </label>
     </div>
 </div>
 
@@ -43,6 +48,28 @@
     <div id="bird-checklist" class="form-group" style="display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
         <span style="color: #999; font-size: 0.85em;">Click "Load Birds from Camera" to populate species list.</span>
     </div>
+</div>
+
+<div id="specific-photo-section" style="display: none;">
+    <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+        <button type="button" class="action-button compact" onclick="loadSpeciesForPicker()">
+            Load Species
+        </button>
+        <span id="photo-load-status" style="font-size: 0.85em; color: #666;"></span>
+    </div>
+    <div class="form-group" id="photo-species-wrap" style="display: none;">
+        <label class="form-label">Species</label>
+        <select id="photo-species-select" class="form-input" onchange="loadThumbnails(this.value)">
+            <option value="">— select a species —</option>
+        </select>
+    </div>
+    <div id="photo-thumbnail-grid"
+        style="display: none; flex-wrap: wrap; gap: 6px; max-height: 320px; overflow-y: auto; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #fafafa;">
+    </div>
+    <div id="photo-selected-display" style="display: none; margin-top: 6px; font-size: 0.8em; color: #555; word-break: break-all;">
+        Pinned: <strong id="photo-selected-name"></strong>
+    </div>
+    <input type="hidden" name="specific_filename" id="specific_filename_value" value="">
 </div>
 
 <div class="form-group">
@@ -68,34 +95,12 @@
         </select>
     </div>
     <div class="form-group">
-        <label class="form-label">AI Model</label>
-        <div style="position:relative;" id="ai-model-container">
-            <button type="button" class="form-input" id="ai-model-btn"
-                onclick="toggleAiModelDropdown(event)"
-                style="width:100%;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
-                <span id="ai-model-label">Flux 2 Pro</span>
-                <span style="font-size:0.75em;opacity:0.5;margin-left:8px;">&#9660;</span>
-            </button>
-            <div id="ai-model-dropdown"
-                style="display:none;position:absolute;z-index:500;width:100%;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);top:calc(100% + 2px);left:0;">
-                <div class="ai-model-opt" data-value="gpt-image-2" data-label="GPT Image 2"
-                    onclick="pickAiModel(this)"
-                    style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #eee;line-height:1.5;">
-                    <strong>GPT Image 2</strong> — OpenAI latest, typically best results ($0.047/image)
-                </div>
-                <div class="ai-model-opt" data-value="flux-kontext-pro" data-label="Flux Kontext Pro"
-                    onclick="pickAiModel(this)"
-                    style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #eee;line-height:1.5;">
-                    <strong>Flux Kontext Pro</strong> — faithful image editing ($0.040/image)
-                </div>
-                <div class="ai-model-opt" data-value="flux-2-pro" data-label="Flux 2 Pro"
-                    onclick="pickAiModel(this)"
-                    style="padding:10px 12px;cursor:pointer;line-height:1.5;">
-                    <strong>Flux 2 Pro</strong> — often 2nd best option ($0.015/run)
-                </div>
-            </div>
-            <input type="hidden" name="ai_model" id="ai_model_value" value="flux-2-pro">
-        </div>
+        <label class="form-label" for="ai_model">AI Model</label>
+        <select id="ai_model" name="ai_model" class="form-input">
+            <option value="gpt-image-2">GPT Image 2 — OpenAI latest, best results ($0.047/image)</option>
+            <option value="flux-kontext-pro">Flux Kontext Pro — faithful image editing ($0.040/image)</option>
+            <option value="flux-2-pro">Flux 2 Pro — often 2nd best option ($0.015/run)</option>
+        </select>
         <small style="color: #888; font-size: 0.8em;">
             Requires REPLICATE_API_TOKEN in .env.
         </small>
@@ -112,22 +117,10 @@ function toggleAiSection(enabled) {
     document.getElementById('ai-section').style.display = enabled ? '' : 'none';
 }
 
-function toggleAiModelDropdown(e) {
-    e.stopPropagation();
-    const dd = document.getElementById('ai-model-dropdown');
-    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
-}
-
-function pickAiModel(el) {
-    document.getElementById('ai_model_value').value = el.dataset.value;
-    document.getElementById('ai-model-label').textContent = el.dataset.label;
-    document.getElementById('ai-model-dropdown').style.display = 'none';
-    document.querySelectorAll('.ai-model-opt').forEach(o => o.style.background = '');
-    el.style.background = '#f0f4ff';
-}
 
 function toggleFilterSection(mode) {
     document.getElementById('filter-section').style.display = mode === 'specific' ? '' : 'none';
+    document.getElementById('specific-photo-section').style.display = mode === 'specific_photo' ? '' : 'none';
 }
 
 function loadBirdsFromCamera() {
@@ -176,10 +169,92 @@ function loadBirdsFromCamera() {
         });
 }
 
-document.addEventListener('click', () => {
-    const dd = document.getElementById('ai-model-dropdown');
-    if (dd) dd.style.display = 'none';
-});
+function loadSpeciesForPicker() {
+    const host = document.getElementById('host').value.trim();
+    const port = document.getElementById('port').value.trim() || '5000';
+    if (!host) {
+        document.getElementById('photo-load-status').textContent = 'Enter a host IP first.';
+        return;
+    }
+    const statusEl = document.getElementById('photo-load-status');
+    statusEl.textContent = 'Loading…';
+
+    fetch(`http://${host}:${port}/api/bird_counts_raw`)
+        .then(r => r.json())
+        .then(data => {
+            const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
+            const select = document.getElementById('photo-species-select');
+            select.innerHTML = '<option value="">— select a species —</option>';
+            sorted.forEach(([bird, count]) => {
+                const opt = document.createElement('option');
+                opt.value = bird;
+                opt.textContent = `${bird} (${count})`;
+                select.appendChild(opt);
+            });
+            document.getElementById('photo-species-wrap').style.display = '';
+            statusEl.textContent = `${sorted.length} species loaded.`;
+        })
+        .catch(err => {
+            statusEl.textContent = 'Failed to connect. Check host and port.';
+            console.error(err);
+        });
+}
+
+function loadThumbnails(species) {
+    const host = document.getElementById('host').value.trim();
+    const port = document.getElementById('port').value.trim() || '5000';
+    const grid = document.getElementById('photo-thumbnail-grid');
+    const currentSelected = document.getElementById('specific_filename_value').value;
+
+    if (!species) {
+        grid.style.display = 'none';
+        grid.innerHTML = '';
+        return;
+    }
+
+    grid.style.display = 'flex';
+    grid.innerHTML = '<span style="color:#999;font-size:0.85em;padding:4px;">Loading images…</span>';
+
+    fetch(`http://${host}:${port}/api/images?bird=${encodeURIComponent(species)}`)
+        .then(r => r.json())
+        .then(files => {
+            grid.innerHTML = '';
+            if (files.length === 0) {
+                grid.innerHTML = '<span style="color:#999;font-size:0.85em;padding:4px;">No images found for this species.</span>';
+                return;
+            }
+            // Newest first
+            [...files].reverse().forEach(filename => {
+                const img = document.createElement('img');
+                img.src = `http://${host}:${port}/images/${filename}`;
+                img.title = filename;
+                img.style.cssText = 'width:90px;height:90px;object-fit:cover;border-radius:4px;cursor:pointer;border:2px solid transparent;flex-shrink:0;';
+                if (filename === currentSelected) {
+                    img.style.borderColor = '#4a90d9';
+                    img.style.boxShadow = '0 0 0 2px #4a90d9';
+                }
+                img.onclick = () => selectPhoto(filename, img);
+                grid.appendChild(img);
+            });
+        })
+        .catch(err => {
+            grid.innerHTML = '<span style="color:#999;font-size:0.85em;padding:4px;">Failed to load images.</span>';
+            console.error(err);
+        });
+}
+
+function selectPhoto(filename, imgEl) {
+    document.querySelectorAll('#photo-thumbnail-grid img').forEach(i => {
+        i.style.borderColor = 'transparent';
+        i.style.boxShadow = '';
+    });
+    imgEl.style.borderColor = '#4a90d9';
+    imgEl.style.boxShadow = '0 0 0 2px #4a90d9';
+    document.getElementById('specific_filename_value').value = filename;
+    document.getElementById('photo-selected-name').textContent = filename;
+    document.getElementById('photo-selected-display').style.display = '';
+}
+
 
 document.addEventListener('DOMContentLoaded', () => {
     if (loadPluginSettings) {
@@ -191,13 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('ai_enhance').checked = aiEnhance;
         const aiStyleEl = document.getElementById('ai_style');
         if (aiStyleEl) aiStyleEl.value = pluginSettings.ai_style || 'colored pencil';
-        const aiModelVal = pluginSettings.ai_model || 'flux-2-pro';
-        document.getElementById('ai_model_value').value = aiModelVal;
-        const savedOpt = document.querySelector(`.ai-model-opt[data-value="${aiModelVal}"]`);
-        if (savedOpt) {
-            document.getElementById('ai-model-label').textContent = savedOpt.dataset.label;
-            savedOpt.style.background = '#f0f4ff';
-        }
+        document.getElementById('ai_model').value = pluginSettings.ai_model || 'flux-2-pro';
         const aiSuffixEl = document.getElementById('ai_prompt_suffix');
         if (aiSuffixEl) aiSuffixEl.value = pluginSettings.ai_prompt_suffix || '';
         toggleAiSection(aiEnhance);
@@ -232,6 +301,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 note.style.cssText = 'color:#999;font-size:0.85em;margin-top:4px;';
                 note.textContent = 'Click "Load Birds from Camera" to see full species list.';
                 container.appendChild(note);
+            }
+        }
+
+        if (filterMode === 'specific_photo') {
+            const savedFilename = pluginSettings.specific_filename || '';
+            if (savedFilename) {
+                document.getElementById('specific_filename_value').value = savedFilename;
+                document.getElementById('photo-selected-name').textContent = savedFilename;
+                document.getElementById('photo-selected-display').style.display = '';
             }
         }
     }

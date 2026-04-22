@@ -301,6 +301,7 @@ body {
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: #000000;
+    opacity: 1;
 }
 
 /* ── Night Watch: dark navy, crisp ── */
