@@ -172,20 +172,21 @@ class BirdCam(BasePlugin):
             f"Render every feather with individual {style} strokes. "
             f"Use a plain white background."
         )
-        logger.info("BirdCam AI: sending request to Replicate flux-kontext-pro prompt=%r", prompt)
+        logger.info("BirdCam AI: sending request to Replicate flux-2-pro prompt=%r", prompt)
         client = replicate.Client(api_token=api_key)
         output = client.run(
-            "black-forest-labs/flux-kontext-pro",
+            "black-forest-labs/flux-2-pro",
             input={
                 "prompt": prompt,
-                "input_image": buf,
+                "input_images": [buf],
                 "aspect_ratio": "match_input_image",
+                "resolution": "match_input_image",
                 "output_format": "jpg",
+                "output_quality": 90,
                 "safety_tolerance": 2,
-                "prompt_upsampling": True,
             },
         )
-        logger.info("BirdCam AI: Replicate flux-kontext-pro completed")
+        logger.info("BirdCam AI: Replicate flux-2-pro completed")
         result_url = str(output[0]) if isinstance(output, list) else str(output)
         styled_resp = requests.get(result_url, timeout=60)
         styled_resp.raise_for_status()
