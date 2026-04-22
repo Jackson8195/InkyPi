@@ -69,19 +69,32 @@
     </div>
     <div class="form-group">
         <label class="form-label">AI Model</label>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
-                <input type="radio" name="ai_model" value="gpt-image-2" style="margin-top: 3px; flex-shrink: 0;">
-                <span>GPT Image 2 — OpenAI latest, typically best results ($0.047/image)</span>
-            </label>
-            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
-                <input type="radio" name="ai_model" value="flux-kontext-pro" style="margin-top: 3px; flex-shrink: 0;">
-                <span>Flux Kontext Pro — faithful image editing ($0.040/image)</span>
-            </label>
-            <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
-                <input type="radio" name="ai_model" value="flux-2-pro" style="margin-top: 3px; flex-shrink: 0;">
-                <span>Flux 2 Pro — often 2nd best option ($0.015/run)</span>
-            </label>
+        <div style="position:relative;" id="ai-model-container">
+            <button type="button" class="form-input" id="ai-model-btn"
+                onclick="toggleAiModelDropdown(event)"
+                style="width:100%;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+                <span id="ai-model-label">Flux 2 Pro</span>
+                <span style="font-size:0.75em;opacity:0.5;margin-left:8px;">&#9660;</span>
+            </button>
+            <div id="ai-model-dropdown"
+                style="display:none;position:absolute;z-index:500;width:100%;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);top:calc(100% + 2px);left:0;">
+                <div class="ai-model-opt" data-value="gpt-image-2" data-label="GPT Image 2"
+                    onclick="pickAiModel(this)"
+                    style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #eee;line-height:1.5;">
+                    <strong>GPT Image 2</strong> — OpenAI latest, typically best results ($0.047/image)
+                </div>
+                <div class="ai-model-opt" data-value="flux-kontext-pro" data-label="Flux Kontext Pro"
+                    onclick="pickAiModel(this)"
+                    style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #eee;line-height:1.5;">
+                    <strong>Flux Kontext Pro</strong> — faithful image editing ($0.040/image)
+                </div>
+                <div class="ai-model-opt" data-value="flux-2-pro" data-label="Flux 2 Pro"
+                    onclick="pickAiModel(this)"
+                    style="padding:10px 12px;cursor:pointer;line-height:1.5;">
+                    <strong>Flux 2 Pro</strong> — often 2nd best option ($0.015/run)
+                </div>
+            </div>
+            <input type="hidden" name="ai_model" id="ai_model_value" value="flux-2-pro">
         </div>
         <small style="color: #888; font-size: 0.8em;">
             Requires REPLICATE_API_TOKEN in .env.
