@@ -8,10 +8,11 @@ import logging
 import base64
 import time
 import re
+import os
 
 logger = logging.getLogger(__name__)
 
-THEMES = ['field_notes', 'night_watch', 'minimal']
+THEMES = ['field_notes', 'night_watch', 'minimal', 'pokemon']
 
 _MAX_AI_INPUT_SIZE = (768, 768)
 
@@ -162,10 +163,16 @@ class BirdCam(BasePlugin):
                 try:
                     started_at = time.monotonic()
                     ai_prompt_suffix = settings.get('ai_prompt_suffix', '').strip()
+                    pokemon_prompt = (
+                        "Depict this bird as a high fidelity pokemon sprite. "
+                        "Keep its colors and composition as is as much as possible. "
+                        "Do not alter its position or features."
+                    ) if theme == 'pokemon' else None
                     img_bytes, mime = BirdCam.apply_ai_style(
                         api_key, img_bytes_raw, ai_style,
                         bird_name=latest_bird, output_size=dimensions,
                         ai_model=ai_model, prompt_suffix=ai_prompt_suffix,
+                        base_prompt=pokemon_prompt,
                     )
                     logger.info("BirdCam: AI styling completed in %.2fs", time.monotonic() - started_at)
                     img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
@@ -198,18 +205,23 @@ class BirdCam(BasePlugin):
             "plugin_settings": settings,
         }
 
-        logger.info("BirdCam: rendering HTML image bird=%s has_img=%s", latest_bird, bool(img_b64))
+        logger.info("BirdCam: rendering HTML image bird=%s has_img=%s theme=%s", latest_bird, bool(img_b64), theme)
+
+        if theme == 'pokemon':
+            template_params['bg_image_path'] = os.path.join(self.render_dir, 'pokemontemplate.png')
+            return self.render_image(dimensions, "pokemon.html", None, template_params)
+
         return self.render_image(dimensions, "bird_cam.html", "bird_cam.css", template_params)
 
     @staticmethod
-    def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None, ai_model="flux-2-pro", prompt_suffix=""):
+    def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None, ai_model="flux-2-pro", prompt_suffix="", base_prompt=None):
         logger.info("BirdCam AI: starting model=%s style=%s bird=%s input_bytes=%s", ai_model, style, bird_name, len(img_bytes))
 
         prepared_bytes, _ = _resize_image_bytes(img_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", jpeg_quality=90)
 
         buf = BytesIO(prepared_bytes)
         buf.name = "bird.jpg"
-        prompt = (
+        prompt = base_prompt or (
             f"Draw the bird exactly as is but in the style of {style}. "
             f"Change the background to blank white #FFFFFF while keeping the bird and the feeder perch in the exact same position. "
             f"The bird should be preserved exactly as is relative to its position in the image and feeder. "
