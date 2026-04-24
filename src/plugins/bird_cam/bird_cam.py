@@ -164,8 +164,8 @@ class BirdCam(BasePlugin):
                     started_at = time.monotonic()
                     ai_prompt_suffix = settings.get('ai_prompt_suffix', '').strip()
                     pokemon_prompt = (
-                        "Depict this bird as a high fidelity pokemon sprite. "
-                        "Keep its colors and composition as is as much as possible. "
+                        "Depict this bird as a pokemon sprite. "
+                        "Keep its composition as much as possible but alter the colors to show high contrast. "
                         "Do not alter its position or features."
                     ) if theme == 'pokemon' else None
                     img_bytes, mime = BirdCam.apply_ai_style(
