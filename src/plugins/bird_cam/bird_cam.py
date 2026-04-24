@@ -92,6 +92,7 @@ class BirdCam(BasePlugin):
             logger.error(f"Bird cam /api/bird_counts_raw failed: {e}")
 
         filter_mode = settings.get('filterMode', 'all')
+        visitor_mode = settings.get('visitor_mode', 'highest_score')
         bird_filters = settings.get('bird_filter[]', [])
         if isinstance(bird_filters, str):
             bird_filters = [bird_filters] if bird_filters else []
@@ -130,7 +131,8 @@ class BirdCam(BasePlugin):
         else:
             try:
                 params = [('birds[]', b) for b in bird_filters] if bird_filters else []
-                latest_resp = requests.get(f"{base_url}/api/best_image", params=params, timeout=5)
+                image_endpoint = "/api/latest_image" if visitor_mode == 'most_recent' else "/api/best_image"
+                latest_resp = requests.get(f"{base_url}{image_endpoint}", params=params, timeout=5)
                 if latest_resp.status_code == 200:
                     latest_data = latest_resp.json()
                     filename = latest_data.get('filename')
@@ -192,6 +194,7 @@ class BirdCam(BasePlugin):
             "filename": filename,
             "top_birds": top_birds,
             "theme": theme,
+            "visitor_mode": visitor_mode,
             "plugin_settings": settings,
         }
 

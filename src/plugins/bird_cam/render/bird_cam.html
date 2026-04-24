@@ -69,7 +69,7 @@
     <!-- Right column: Last Visitor label, bird name title, photo, filename -->
     <div class="right-col">
 
-        <div class="last-visitor-label">Highest Score:</div>
+        <div class="last-visitor-label">{% if visitor_mode == 'most_recent' %}Last Visitor:{% else %}Highest Score:{% endif %}</div>
 
         <div class="bird-info">
             {% if bird_name %}

@@ -38,6 +38,20 @@
     </div>
 </div>
 
+<div id="visitor-mode-section" class="form-group">
+    <label class="form-label">Display</label>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="radio" name="visitor_mode" value="highest_score" checked>
+            Highest score
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="radio" name="visitor_mode" value="most_recent">
+            Most recent visitor
+        </label>
+    </div>
+</div>
+
 <div id="filter-section" style="display: none;">
     <div class="form-group">
         <button type="button" class="action-button compact" onclick="loadBirdsFromCamera()">
@@ -121,6 +135,7 @@ function toggleAiSection(enabled) {
 function toggleFilterSection(mode) {
     document.getElementById('filter-section').style.display = mode === 'specific' ? '' : 'none';
     document.getElementById('specific-photo-section').style.display = mode === 'specific_photo' ? '' : 'none';
+    document.getElementById('visitor-mode-section').style.display = mode === 'specific_photo' ? 'none' : '';
 }
 
 function loadBirdsFromCamera() {
@@ -275,6 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const radio = document.querySelector(`input[name="filterMode"][value="${filterMode}"]`);
         if (radio) radio.checked = true;
         toggleFilterSection(filterMode);
+
+        const visitorMode = pluginSettings.visitor_mode || 'highest_score';
+        const visitorRadio = document.querySelector(`input[name="visitor_mode"][value="${visitorMode}"]`);
+        if (visitorRadio) visitorRadio.checked = true;
 
         if (filterMode === 'specific') {
             const savedFilters = pluginSettings['bird_filter[]'];
