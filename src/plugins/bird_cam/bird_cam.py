@@ -164,11 +164,15 @@ class BirdCam(BasePlugin):
                 try:
                     started_at = time.monotonic()
                     ai_prompt_suffix = settings.get('ai_prompt_suffix', '').strip()
+                    bg_instruction = (
+                        "Remove the background (make it transparent)"
+                        if ai_model == "gpt-image-2"
+                        else "Change the background to blank white #FFFFFF"
+                    )
                     pokemon_prompt = (
                         "Depict this bird as a pokemon sprite. "
                         "Keep its composition as much as possible but alter the colors to show high contrast. "
-                        "Do not alter its position or features. "
-                        "Remove the background and make it white."
+                        f"Do not alter its position or features. {bg_instruction}."
                     ) if theme == 'pokemon' else None
                     img_bytes, mime = BirdCam.apply_ai_style(
                         api_key, img_bytes_raw, ai_style,
