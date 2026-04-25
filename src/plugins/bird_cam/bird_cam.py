@@ -296,5 +296,5 @@ class BirdCam(BasePlugin):
         styled_bytes = styled_resp.content
         logger.info("BirdCam AI: downloaded result bytes=%s", len(styled_bytes))
         if output_size:
-            return _resize_image_bytes(styled_bytes, output_size, output_format="JPEG", flatten_alpha=True)
-        return _resize_image_bytes(styled_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", flatten_alpha=True)
+            return _resize_image_bytes(styled_bytes, output_size)
+        return _resize_image_bytes(styled_bytes, _MAX_AI_INPUT_SIZE)
