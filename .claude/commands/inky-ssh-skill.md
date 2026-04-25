@@ -12,9 +12,10 @@ ssh -o ConnectTimeout=30 pi@192.168.0.151 "<command>"
 ## Deploy to Pi
 When asked to deploy the current branch:
 1. Confirm with the user before running (this is a write operation).
-2. Run restore and pull: `ssh -o ConnectTimeout=30 pi@192.168.0.151 "cd /home/pi/InkyPi && git restore . && git pull 2>&1"`
-3. Restart the service: `ssh -o ConnectTimeout=15 pi@192.168.0.151 "sudo systemctl restart inkypi.service && echo restarted"`
-4. Report what files changed and confirm the service restarted.
+2. **Check for pending local changes** (`git status`). If there are uncommitted changes, commit them first. If the branch is ahead of remote, push it.
+3. Run restore and pull: `ssh -o ConnectTimeout=30 pi@192.168.0.151 "cd /home/pi/InkyPi && git restore . && git pull 2>&1"`
+4. Restart the service: `ssh -o ConnectTimeout=15 pi@192.168.0.151 "sudo systemctl restart inkypi.service && echo restarted"`
+5. Report what files changed and confirm the service restarted.
 
 ## Battery reset
 Script: `/home/pi/Documents/set_full_charge.py`

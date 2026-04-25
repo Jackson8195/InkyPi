@@ -111,7 +111,7 @@
     </div>
     <div class="form-group">
         <label class="form-label" for="ai_model">AI Model</label>
-        <select id="ai_model" name="ai_model" class="form-input">
+        <select id="ai_model" name="ai_model" class="form-input" onchange="toggleAiQuality()">
             <option value="gpt-image-2">GPT Image 2 — OpenAI latest, best results ($0.047/image)</option>
             <option value="flux-kontext-pro">Flux Kontext Pro — faithful image editing ($0.040/image)</option>
             <option value="flux-2-pro">Flux 2 Pro — often 2nd best option ($0.015/run)</option>
@@ -119,6 +119,14 @@
         <small style="color: #888; font-size: 0.8em;">
             Requires REPLICATE_API_TOKEN in .env.
         </small>
+    </div>
+    <div class="form-group" id="ai-quality-group" style="display: none;">
+        <label class="form-label" for="ai_quality">Image Quality</label>
+        <select id="ai_quality" name="ai_quality" class="form-input">
+            <option value="high">High — best results, higher cost</option>
+            <option value="medium" selected>Medium — balanced</option>
+            <option value="low">Low — faster, lower cost</option>
+        </select>
     </div>
     <div class="form-group">
         <label class="form-label" for="ai_prompt_suffix">Additional Prompt Text (optional)</label>
@@ -130,6 +138,12 @@
 <script>
 function toggleAiSection(enabled) {
     document.getElementById('ai-section').style.display = enabled ? '' : 'none';
+    if (enabled) toggleAiQuality();
+}
+
+function toggleAiQuality() {
+    const model = document.getElementById('ai_model').value;
+    document.getElementById('ai-quality-group').style.display = model === 'gpt-image-2' ? '' : 'none';
 }
 
 
@@ -283,6 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const aiStyleEl = document.getElementById('ai_style');
         if (aiStyleEl) aiStyleEl.value = pluginSettings.ai_style || 'colored pencil';
         document.getElementById('ai_model').value = pluginSettings.ai_model || 'flux-2-pro';
+        document.getElementById('ai_quality').value = pluginSettings.ai_quality || 'medium';
         const aiSuffixEl = document.getElementById('ai_prompt_suffix');
         if (aiSuffixEl) aiSuffixEl.value = pluginSettings.ai_prompt_suffix || '';
         toggleAiSection(aiEnhance);

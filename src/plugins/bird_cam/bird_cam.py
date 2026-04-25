@@ -157,6 +157,7 @@ class BirdCam(BasePlugin):
 
         ai_style = settings.get('ai_style', 'colored pencil').strip() or 'colored pencil'
         ai_model = settings.get('ai_model', 'flux-2-pro')
+        ai_quality = settings.get('ai_quality', 'medium')
         if ai_enhance and img_bytes_raw:
             api_key = device_config.load_env_key("REPLICATE_API_TOKEN")
             if api_key:
@@ -173,7 +174,7 @@ class BirdCam(BasePlugin):
                         api_key, img_bytes_raw, ai_style,
                         bird_name=latest_bird, output_size=dimensions,
                         ai_model=ai_model, prompt_suffix=ai_prompt_suffix,
-                        base_prompt=pokemon_prompt,
+                        base_prompt=pokemon_prompt, quality=ai_quality,
                     )
                     logger.info("BirdCam: AI styling completed in %.2fs", time.monotonic() - started_at)
                     img_b64 = f"data:{mime};base64,{base64.b64encode(img_bytes).decode()}"
@@ -215,16 +216,21 @@ class BirdCam(BasePlugin):
         return self.render_image(dimensions, "bird_cam.html", "bird_cam.css", template_params)
 
     @staticmethod
-    def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None, ai_model="flux-2-pro", prompt_suffix="", base_prompt=None):
-        logger.info("BirdCam AI: starting model=%s style=%s bird=%s input_bytes=%s", ai_model, style, bird_name, len(img_bytes))
+    def apply_ai_style(api_key, img_bytes, style, bird_name=None, output_size=None, ai_model="flux-2-pro", prompt_suffix="", base_prompt=None, quality="medium"):
+        logger.info("BirdCam AI: starting model=%s style=%s quality=%s bird=%s input_bytes=%s", ai_model, style, quality, bird_name, len(img_bytes))
 
         prepared_bytes, _ = _resize_image_bytes(img_bytes, _MAX_AI_INPUT_SIZE, output_format="JPEG", jpeg_quality=90)
 
         buf = BytesIO(prepared_bytes)
         buf.name = "bird.jpg"
+        bg_instruction = (
+            "Remove the background (make it transparent)"
+            if ai_model == "gpt-image-2"
+            else "Change the background to blank white #FFFFFF"
+        )
         prompt = base_prompt or (
             f"Draw the bird exactly as is but in the style of {style}. "
-            f"Change the background to blank white #FFFFFF while keeping the bird and the feeder perch in the exact same position. "
+            f"{bg_instruction} while keeping the bird and the feeder perch in the exact same position. "
             f"The bird should be preserved exactly as is relative to its position in the image and feeder. "
             f"Preserve colors of the bird, its plumage should be accurate to the real life source image. "
             f"Use high detail, it should be a professional looking portrait."
@@ -255,16 +261,17 @@ class BirdCam(BasePlugin):
                 size = "1536x1024" if w >= h else "1024x1536"
             else:
                 size = "1024x1024"
-            logger.info("BirdCam AI: sending request to gpt-image-2 prompt=%r size=%s", prompt, size)
+            logger.info("BirdCam AI: sending request to gpt-image-2 prompt=%r size=%s quality=%s", prompt, size, quality)
             output = client.run(
                 "openai/gpt-image-2",
                 input={
                     "prompt": prompt,
                     "input_images": [buf],
                     "size": size,
-                    "output_format": "jpeg",
+                    "output_format": "png",
                     "output_compression": 90,
-                    "quality": "medium",
+                    "background": "auto",
+                    "quality": quality,
                 },
             )
             logger.info("BirdCam AI: Replicate gpt-image-2 completed")
