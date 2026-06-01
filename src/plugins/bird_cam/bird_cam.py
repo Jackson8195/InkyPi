@@ -50,7 +50,18 @@ class BirdCam(BasePlugin):
         template_params = super().generate_settings_template()
         template_params['style_settings'] = True
         template_params['themes'] = THEMES
+        template_params['master_bird_list'] = self._load_master_bird_list()
         return template_params
+
+    def _load_master_bird_list(self):
+        path = os.path.join(os.path.dirname(__file__), 'bird_list', 'inat_bird_labels.txt')
+        birds = []
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                m = re.search(r'\(([^)]+)\)$', line.strip())
+                if m:
+                    birds.append(m.group(1))
+        return sorted(birds)
 
     def generate_image(self, settings, device_config):
         host = settings.get('host', '').strip()
@@ -83,6 +94,7 @@ class BirdCam(BasePlugin):
             logger.error(f"Bird cam /api/stats failed: {e}")
             raise RuntimeError("Failed to fetch bird cam stats, please check logs.")
 
+        counts = {}
         top_birds = []
         try:
             counts_resp = requests.get(f"{base_url}/api/bird_counts_raw", timeout=5)
@@ -97,6 +109,14 @@ class BirdCam(BasePlugin):
         bird_filters = settings.get('bird_filter[]', [])
         if isinstance(bird_filters, str):
             bird_filters = [bird_filters] if bird_filters else []
+
+        bird_excludes = settings.get('bird_exclude[]', [])
+        if isinstance(bird_excludes, str):
+            bird_excludes = [bird_excludes] if bird_excludes else []
+
+        if filter_mode == 'exclude' and bird_excludes and counts:
+            exclude_set = set(bird_excludes)
+            bird_filters = [b for b in counts.keys() if b not in exclude_set]
 
         latest_bird = None
         bird_score = None

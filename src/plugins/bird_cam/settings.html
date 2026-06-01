@@ -32,6 +32,11 @@
             Filter to specific species
         </label>
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="radio" name="filterMode" id="filterExclude" value="exclude"
+                onchange="toggleFilterSection(this.value)">
+            Exclude specific species
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
             <input type="radio" name="filterMode" id="filterSpecificPhoto" value="specific_photo"
                 onchange="toggleFilterSection(this.value)">
             Pin a specific photo
@@ -54,15 +59,35 @@
 </div>
 
 <div id="filter-section" style="display: none;">
-    <div class="form-group">
-        <button type="button" class="action-button compact" onclick="loadBirdsFromCamera()">
-            Load Birds from Camera
+    <div class="form-group" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="include-search" class="form-input" placeholder="Search birds…"
+               oninput="renderBirdList('include')" style="flex:1; min-width:120px;" />
+        <label style="white-space:nowrap; cursor:pointer; display:flex; align-items:center; gap:4px;">
+            <input type="checkbox" id="include-visitors-only" onchange="renderBirdList('include')">
+            Current visitors only
+        </label>
+        <button type="button" class="action-button compact" onclick="fetchCountsAndRender('include')">
+            Refresh counts
         </button>
-        <span id="load-status" style="margin-left: 8px; font-size: 0.85em; color: #666;"></span>
     </div>
-    <div id="bird-checklist" class="form-group" style="display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-        <span style="color: #999; font-size: 0.85em;">Click "Load Birds from Camera" to populate species list.</span>
+    <span id="include-status" style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;"></span>
+    <div id="include-checklist" style="display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; padding:8px; border:1px solid #ddd; border-radius:4px;"></div>
+</div>
+
+<div id="exclude-section" style="display: none;">
+    <div class="form-group" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="exclude-search" class="form-input" placeholder="Search birds…"
+               oninput="renderBirdList('exclude')" style="flex:1; min-width:120px;" />
+        <label style="white-space:nowrap; cursor:pointer; display:flex; align-items:center; gap:4px;">
+            <input type="checkbox" id="exclude-visitors-only" onchange="renderBirdList('exclude')">
+            Current visitors only
+        </label>
+        <button type="button" class="action-button compact" onclick="fetchCountsAndRender('exclude')">
+            Refresh counts
+        </button>
     </div>
+    <span id="exclude-status" style="font-size:0.85em; color:#666; display:block; margin-bottom:4px;"></span>
+    <div id="exclude-checklist" style="display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; padding:8px; border:1px solid #ddd; border-radius:4px;"></div>
 </div>
 
 <div id="specific-photo-section" style="display: none;">
@@ -147,56 +172,87 @@ function toggleAiQuality() {
 }
 
 
+const MASTER_BIRD_LIST = {{ master_bird_list | tojson }};
+let birdCounts = {};
+let checkedInclude = new Set();
+let checkedExclude = new Set();
+
 function toggleFilterSection(mode) {
-    document.getElementById('filter-section').style.display = mode === 'specific' ? '' : 'none';
+    document.getElementById('filter-section').style.display         = mode === 'specific'       ? '' : 'none';
+    document.getElementById('exclude-section').style.display        = mode === 'exclude'        ? '' : 'none';
     document.getElementById('specific-photo-section').style.display = mode === 'specific_photo' ? '' : 'none';
-    document.getElementById('visitor-mode-section').style.display = mode === 'specific_photo' ? 'none' : '';
+    document.getElementById('visitor-mode-section').style.display   = mode === 'specific_photo' ? 'none' : '';
+
+    if (mode === 'specific' || mode === 'exclude') {
+        const listMode = mode === 'specific' ? 'include' : 'exclude';
+        renderBirdList(listMode);
+        const host = document.getElementById('host').value.trim();
+        if (host) fetchCountsAndRender(listMode);
+    }
 }
 
-function loadBirdsFromCamera() {
+function fetchCountsAndRender(mode) {
     const host = document.getElementById('host').value.trim();
     const port = document.getElementById('port').value.trim() || '5000';
-    if (!host) {
-        document.getElementById('load-status').textContent = 'Enter a host IP first.';
-        return;
-    }
-
-    const statusEl = document.getElementById('load-status');
-    statusEl.textContent = 'Loading…';
-
-    const checkedBirds = new Set(
-        Array.from(document.querySelectorAll('input[name="bird_filter[]"]:checked')).map(el => el.value)
-    );
-
+    const statusEl = document.getElementById(mode === 'include' ? 'include-status' : 'exclude-status');
+    if (!host) { statusEl.textContent = 'Enter a host IP first.'; return; }
+    statusEl.textContent = 'Loading counts…';
     fetch(`http://${host}:${port}/api/bird_counts_raw`)
         .then(r => r.json())
         .then(data => {
-            const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
-            const container = document.getElementById('bird-checklist');
-            container.innerHTML = '';
-            if (sorted.length === 0) {
-                container.innerHTML = '<span style="color:#999;font-size:0.85em;">No birds detected yet.</span>';
-                statusEl.textContent = '';
-                return;
-            }
-            sorted.forEach(([bird, count]) => {
-                const label = document.createElement('label');
-                label.style.cssText = 'display:flex;align-items:center;gap:8px;cursor:pointer;';
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.name = 'bird_filter[]';
-                cb.value = bird;
-                cb.checked = checkedBirds.has(bird);
-                label.appendChild(cb);
-                label.appendChild(document.createTextNode(`${bird} (${count})`));
-                container.appendChild(label);
-            });
-            statusEl.textContent = `${sorted.length} species loaded.`;
+            birdCounts = data;
+            statusEl.textContent = `${Object.keys(data).length} species detected at camera.`;
+            renderBirdList(mode);
         })
         .catch(err => {
             statusEl.textContent = 'Failed to connect. Check host and port.';
             console.error(err);
         });
+}
+
+function renderBirdList(mode) {
+    const isInclude   = mode === 'include';
+    const checkedSet  = isInclude ? checkedInclude : checkedExclude;
+    const searchEl    = document.getElementById(isInclude ? 'include-search' : 'exclude-search');
+    const toggleEl    = document.getElementById(isInclude ? 'include-visitors-only' : 'exclude-visitors-only');
+    const container   = document.getElementById(isInclude ? 'include-checklist' : 'exclude-checklist');
+    const fieldName   = isInclude ? 'bird_filter[]' : 'bird_exclude[]';
+
+    const search      = searchEl.value.toLowerCase().trim();
+    const visitorsOnly = toggleEl.checked;
+
+    const filtered = MASTER_BIRD_LIST.filter(bird => {
+        if (checkedSet.has(bird)) return true;
+        if (visitorsOnly && !birdCounts[bird]) return false;
+        if (search && !bird.toLowerCase().includes(search)) return false;
+        return true;
+    });
+
+    filtered.sort((a, b) => {
+        const ac = checkedSet.has(a) ? 1 : 0, bc = checkedSet.has(b) ? 1 : 0;
+        if (ac !== bc) return bc - ac;
+        return (birdCounts[b] || 0) - (birdCounts[a] || 0);
+    });
+
+    container.innerHTML = '';
+    if (filtered.length === 0) {
+        container.innerHTML = '<span style="color:#999;font-size:0.85em;">No birds match your search.</span>';
+        return;
+    }
+    filtered.forEach(bird => {
+        const count = birdCounts[bird];
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;align-items:center;gap:8px;cursor:pointer;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.name = fieldName;
+        cb.value = bird;
+        cb.checked = checkedSet.has(bird);
+        cb.onchange = () => { cb.checked ? checkedSet.add(bird) : checkedSet.delete(bird); };
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(count !== undefined ? `${bird} (${count})` : bird));
+        container.appendChild(label);
+    });
 }
 
 function loadSpeciesForPicker() {
@@ -305,39 +361,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const filterMode = pluginSettings.filterMode || 'all';
         const radio = document.querySelector(`input[name="filterMode"][value="${filterMode}"]`);
         if (radio) radio.checked = true;
-        toggleFilterSection(filterMode);
 
         const visitorMode = pluginSettings.visitor_mode || 'highest_score';
         const visitorRadio = document.querySelector(`input[name="visitor_mode"][value="${visitorMode}"]`);
         if (visitorRadio) visitorRadio.checked = true;
 
         if (filterMode === 'specific') {
-            const savedFilters = pluginSettings['bird_filter[]'];
-            const filters = Array.isArray(savedFilters)
-                ? savedFilters
-                : (savedFilters ? [savedFilters] : []);
-
-            if (filters.length > 0) {
-                const container = document.getElementById('bird-checklist');
-                container.innerHTML = '';
-                filters.forEach(bird => {
-                    const label = document.createElement('label');
-                    label.style.cssText = 'display:flex;align-items:center;gap:8px;cursor:pointer;';
-                    const cb = document.createElement('input');
-                    cb.type = 'checkbox';
-                    cb.name = 'bird_filter[]';
-                    cb.value = bird;
-                    cb.checked = true;
-                    label.appendChild(cb);
-                    label.appendChild(document.createTextNode(bird));
-                    container.appendChild(label);
-                });
-                const note = document.createElement('span');
-                note.style.cssText = 'color:#999;font-size:0.85em;margin-top:4px;';
-                note.textContent = 'Click "Load Birds from Camera" to see full species list.';
-                container.appendChild(note);
-            }
+            const saved = pluginSettings['bird_filter[]'];
+            const arr = Array.isArray(saved) ? saved : (saved ? [saved] : []);
+            checkedInclude = new Set(arr);
         }
+        if (filterMode === 'exclude') {
+            const saved = pluginSettings['bird_exclude[]'];
+            const arr = Array.isArray(saved) ? saved : (saved ? [saved] : []);
+            checkedExclude = new Set(arr);
+        }
+
+        toggleFilterSection(filterMode);
 
         if (filterMode === 'specific_photo') {
             const savedFilename = pluginSettings.specific_filename || '';

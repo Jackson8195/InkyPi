@@ -4,17 +4,18 @@ General-purpose SSH agent for the Pi at `pi@inky-pizero2w.local`. Use this for a
 **NEVER run write, delete, or destructive commands** (file writes, rm, mv, systemctl stop/restart, git restore, pip install, etc.) **without first describing the command to the user and getting explicit approval.** Read-only commands (ls, cat, journalctl, systemctl status, git log, ps, df, etc.) may run freely.
 
 ## SSH connection
-Always use IP directly:
+Always use IP directly with keepalive options to prevent hangs that block remote control sessions:
 ```
-ssh -o ConnectTimeout=30 pi@192.168.0.151 "<command>"
+ssh -o ConnectTimeout=30 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 pi@192.168.0.151 "<command>"
 ```
+**Never omit `ServerAliveInterval` and `ServerAliveCountMax`** — `ConnectTimeout` only covers the initial handshake; without keepalives, commands like `git pull` can hang indefinitely.
 
 ## Deploy to Pi
 When asked to deploy the current branch:
 1. Confirm with the user before running (this is a write operation).
 2. **Check for pending local changes** (`git status`). If there are uncommitted changes, commit them first. If the branch is ahead of remote, push it.
-3. Run restore and pull: `ssh -o ConnectTimeout=30 pi@192.168.0.151 "cd /home/pi/InkyPi && git restore . && git pull 2>&1"`
-4. Restart the service: `ssh -o ConnectTimeout=15 pi@192.168.0.151 "sudo systemctl restart inkypi.service && echo restarted"`
+3. Run restore and pull: `ssh -o ConnectTimeout=30 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 pi@192.168.0.151 "cd /home/pi/InkyPi && git restore . && git pull 2>&1"`
+4. Restart the service: `ssh -o ConnectTimeout=30 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 pi@192.168.0.151 "sudo systemctl restart inkypi.service && echo restarted"`
 5. Report what files changed and confirm the service restarted.
 
 ## Battery reset
