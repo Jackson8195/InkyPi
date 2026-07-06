@@ -156,7 +156,7 @@ def update_now():
 
     try:
         plugin_settings = parse_form(request.form)
-        plugin_settings.update(handle_request_files(request.files))
+        plugin_settings.update(handle_request_files(request.files, request.form))
         plugin_id = plugin_settings.pop("plugin_id")
 
         # Check if refresh task is running
